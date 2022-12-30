@@ -78,23 +78,51 @@ spec = do
         Stdout after <- cmd "cat" "file"
         after `shouldBe` before
 
-      it "returns newly installed packages" $ do
-        let package = mkScript "echo foo > file"
-        installed <- applyConfig [] [package]
+      it "doesn't allow packages to modify existing files" $ do
+        touch "pre-existing"
+        let package = mkScript "echo foo > pre-existing"
         workingDir <- getCurrentDirectory
-        installed `shouldBe` [InstalledPackage package [workingDir </> "file"] []]
+        installPackage package
+          `shouldThrow` ( ==
+                            Error
+                              ( "file already exists: "
+                                  <> workingDir
+                                  </> "pre-existing"
+                              )
+                        )
 
-      it "returns already installed packages" $ do
-        let package = mkScript "touch file"
-        installedPackage <- installPackage package
-        installedPackages <- applyConfig [installedPackage] [package]
-        installedPackages `shouldBe` [installedPackage]
+      it "doesn't install any files if some files already exist" $ do
+        touch "b"
+        let package = mkScript "echo foo > a ; echo bar > b"
+        workingDir <- getCurrentDirectory
+        installPackage package
+          `shouldThrow` ( ==
+                            Error
+                              ( "file already exists: "
+                                  <> workingDir
+                                  </> "b"
+                              )
+                        )
+        doesFileExist "a" `shouldReturn` False
 
-      it "doesn't returned uninstalled packages" $ do
-        let package = mkScript "touch file"
-        installedPackage <- installPackage package
-        installedPackages <- applyConfig [installedPackage] []
-        installedPackages `shouldBe` []
+      describe "returned InstalledPackages" $ do
+        it "returns newly installed packages" $ do
+          let package = mkScript "echo foo > file"
+          installed <- applyConfig [] [package]
+          workingDir <- getCurrentDirectory
+          installed `shouldBe` [InstalledPackage package [workingDir </> "file"] []]
+
+        it "returns already installed packages" $ do
+          let package = mkScript "touch file"
+          installedPackage <- installPackage package
+          installedPackages <- applyConfig [installedPackage] [package]
+          installedPackages `shouldBe` [installedPackage]
+
+        it "doesn't returned uninstalled packages" $ do
+          let package = mkScript "touch file"
+          installedPackage <- installPackage package
+          installedPackages <- applyConfig [installedPackage] []
+          installedPackages `shouldBe` []
 
       describe "uninstalling" $ do
         it "removes empty directories during installation" $ do

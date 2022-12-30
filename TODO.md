@@ -1,4 +1,6 @@
-- don't allow packager to modify existing files
 - provide a temporary build directory
-- build a better cli
+- allow to list all installed package names
+- implement a default db file location
+- implement a default packages file location
 - build a better Db module (with sqlite?)
+- come up with better project name
