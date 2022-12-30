@@ -1,4 +1,3 @@
-- don't suppress stderr in test suite, really bad for debugging
 - don't allow packager to modify existing files
 - provide a temporary build directory
 - build a better cli

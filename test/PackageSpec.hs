@@ -3,14 +3,13 @@
 
 module PackageSpec where
 
+import Context
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Development.Shake (Stdout (..), cmd, unit)
 import Package
 import System.Directory
 import System.FilePath
-import System.IO
-import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
 
@@ -29,7 +28,7 @@ mkScript code =
 
 spec :: Spec
 spec = do
-  around_ (inTempDirectory . hSilence [stderr]) $ do
+  around_ inTempDirectory $ do
     describe "installPackage" $ do
       it "allows to install files" $ do
         _ <- installPackage (mkScript "echo foo > file")
@@ -57,6 +56,7 @@ spec = do
         readFile ".hidden" `shouldReturn` ""
 
     describe "applyConfig" $ do
+      applyConfig <- return $ applyConfig Context.test
       it "installs packages that aren't installed, but in the configuration" $ do
         let package = mkScript "echo foo > file"
         _ <- applyConfig [] [package]

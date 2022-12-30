@@ -4,6 +4,7 @@
 
 module Run where
 
+import Context
 import Control.Exception
 import Data.Yaml
 import Db
@@ -26,4 +27,4 @@ run = withCli $ \args -> do
       Right packages -> return packages
       Left e -> throwIO $ ErrorCall $ show e
   withState_ (dbFile args) ([] :: [InstalledPackage]) $ \installed -> do
-    applyConfig installed packages
+    applyConfig Context.production installed packages

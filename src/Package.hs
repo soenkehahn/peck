@@ -3,6 +3,7 @@
 
 module Package where
 
+import Context
 import Control.Monad
 import Data.List
 import Data.Yaml (FromJSON)
@@ -12,6 +13,7 @@ import OverlayFS (Command (..), withMountedImageFile)
 import System.FilePath (takeDirectory, (</>))
 import System.IO
 import Utils
+import Prelude hiding (log)
 
 data Package = Package
   { name :: String,
@@ -42,12 +44,12 @@ installPackage package = do
         return installTarget
     return $ InstalledPackage package files []
 
-applyConfig :: [InstalledPackage] -> [Package] -> IO [InstalledPackage]
-applyConfig installedPackages packages = do
+applyConfig :: Context -> [InstalledPackage] -> [Package] -> IO [InstalledPackage]
+applyConfig context installedPackages packages = do
   let toUninstall = filter (not . (`elem` packages) . package) installedPackages
       toInstall = filter (not . (`elem` map package installedPackages)) packages
-  hPutStrLn stderr $ "uninstalling: " <> unwords (map (name . package) toUninstall)
-  hPutStrLn stderr $ "installing: " <> unwords (map name toInstall)
+  log context $ "uninstalling: " <> unwords (map (name . package) toUninstall)
+  log context $ "installing: " <> unwords (map name toInstall)
   forM_ toUninstall $ \package -> do
     forM_ (files package) $ \file -> do
       unit $ cmd "rm" file
