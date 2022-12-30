@@ -1,0 +1,5 @@
+- delete temporary files that are set to not writeable
+- don't allow packager to modify existing files
+- provide a temporary build directory
+- build a better cli
+- build a better Db module (with sqlite?)
