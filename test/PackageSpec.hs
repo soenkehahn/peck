@@ -1,10 +1,11 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module PackageSpec where
 
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
-import Development.Shake (cmd, unit)
+import Development.Shake (Stdout (..), cmd, unit)
 import Package
 import System.Directory
 import System.FilePath
@@ -55,9 +56,7 @@ spec = do
     describe "applyConfig" $ do
       it "installs packages that aren't installed, but in the configuration" $ do
         let package = mkScript "echo foo > file"
-        installed <- applyConfig [] [package]
-        workingDir <- getCurrentDirectory
-        installed `shouldBe` [InstalledPackage package [workingDir </> "file"] []]
+        _ <- applyConfig [] [package]
         readFile "file" `shouldReturn` "foo\n"
 
       it "uninstalls installed packages that aren't in the configuration anymore" $ do
@@ -68,12 +67,31 @@ spec = do
         _ <- applyConfig [installedPackage] []
         doesFileExist "file" `shouldReturn` False
 
-      it "doesn't touch installed packages that are in the configuration" $ do
-        let package = mkScript "echo foo > file"
+      it "doesn't re-install packages that are in the configuration" $ do
+        let package = mkScript "echo $RANDOM > file"
         installedPackage <- installPackage package
-        readFile "file" `shouldReturn` "foo\n"
+        Stdout (before :: String) <- cmd "cat" "file"
         _ <- applyConfig [installedPackage] [package]
-        readFile "file" `shouldReturn` "foo\n"
+        Stdout after <- cmd "cat" "file"
+        after `shouldBe` before
+
+      it "returns newly installed packages" $ do
+        let package = mkScript "echo foo > file"
+        installed <- applyConfig [] [package]
+        workingDir <- getCurrentDirectory
+        installed `shouldBe` [InstalledPackage package [workingDir </> "file"] []]
+
+      it "returns already installed packages" $ do
+        let package = mkScript "touch file"
+        installedPackage <- installPackage package
+        installedPackages <- applyConfig [installedPackage] [package]
+        installedPackages `shouldBe` [installedPackage]
+
+      it "doesn't returned uninstalled packages" $ do
+        let package = mkScript "touch file"
+        installedPackage <- installPackage package
+        installedPackages <- applyConfig [installedPackage] []
+        installedPackages `shouldBe` []
 
       it "removes empty directories during installation" $ do
         let package = mkScript "mkdir dir ; touch dir/file"
