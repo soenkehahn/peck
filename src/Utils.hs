@@ -15,6 +15,7 @@ withTempDir action = do
   bracket (createTempDirectory systemTempDir "packager") removeDir action
   where
     removeDir dir = do
+      unit $ cmd "chmod u+rwX -R" dir
       unit $ cmd "rm" dir "-rf"
 
 readFilesRecursively :: FilePath -> IO [FilePath]

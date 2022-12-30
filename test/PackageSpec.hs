@@ -96,28 +96,42 @@ spec = do
         installedPackages <- applyConfig [installedPackage] []
         installedPackages `shouldBe` []
 
-      it "removes empty directories during installation" $ do
-        let package = mkScript "mkdir dir ; touch dir/file"
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
-        doesDirectoryExist "dir" `shouldReturn` False
+      describe "uninstalling" $ do
+        it "removes empty directories during installation" $ do
+          let package = mkScript "mkdir dir ; touch dir/file"
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          doesDirectoryExist "dir" `shouldReturn` False
 
-      it "removes empty nested directories during installation" $ do
-        let package = mkScript "mkdir -p foo/bar ; touch foo/bar/file"
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
-        doesDirectoryExist "foo" `shouldReturn` False
+        it "removes empty nested directories during installation" $ do
+          let package = mkScript "mkdir -p foo/bar ; touch foo/bar/file"
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          doesDirectoryExist "foo" `shouldReturn` False
 
-      it "also removes pre-existing empty directories" $ do
-        unit $ cmd "mkdir dir"
-        let package = mkScript "touch dir/file"
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
-        doesDirectoryExist "dir" `shouldReturn` False
+        it "also removes pre-existing empty directories" $ do
+          unit $ cmd "mkdir dir"
+          let package = mkScript "touch dir/file"
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          doesDirectoryExist "dir" `shouldReturn` False
 
-      it "doesn't remove pre-existing files when uninstallating a package" $ do
-        touch "other-file"
-        let package = mkScript "touch file"
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
-        doesFileExist "other-file" `shouldReturn` True
+        it "doesn't remove pre-existing files when uninstallating a package" $ do
+          touch "other-file"
+          let package = mkScript "touch file"
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          doesFileExist "other-file" `shouldReturn` True
+
+        it "removes installed files set to non-writeable" $ do
+          let package =
+                mkScript $
+                  unindent
+                    [i|
+                      mkdir dir
+                      touch dir/file
+                      chmod a-w -R dir
+                    |]
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          doesFileExist "file" `shouldReturn` False
