@@ -8,9 +8,11 @@ dependencies:
   - base
   - directory
   - filepath
+  - getopt-generics
   - interpolate
   - shake
   - temporary
+  - yaml
 
 tests:
   spec:
@@ -26,7 +28,7 @@ tests:
       - -fdefer-typed-holes
 
 executables:
-  doit:
+  packager:
     main: Main.hs
     source-dirs:
       - app

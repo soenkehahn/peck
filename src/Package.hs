@@ -1,31 +1,37 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module Package where
 
 import Control.Monad
 import Data.List
+import Data.Yaml (FromJSON)
 import Development.Shake (cmd, unit)
+import GHC.Generics (Generic)
 import OverlayFS (Command (..), withMountedImageFile)
 import System.FilePath (takeDirectory, (</>))
+import System.IO
 import Utils
 
-newtype Package = Package
-  { installScript :: String
+data Package = Package
+  { name :: String,
+    install :: String
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Read, Eq, Generic)
+
+instance FromJSON Package
 
 data InstalledPackage = InstalledPackage
   { package :: Package,
     files :: [FilePath],
     dirs :: [FilePath]
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Read, Eq)
 
 installPackage :: Package -> IO InstalledPackage
-installPackage Package {installScript} = do
+installPackage package = do
   withTempDir $ \tempDir -> do
-    writeFile (tempDir </> "install.sh") installScript
+    writeFile (tempDir </> "install.sh") $ install package
     unit $ cmd "chmod +x" (tempDir </> "install.sh")
     files <- withMountedImageFile (Script (tempDir </> "install.sh")) $ \overlay -> do
       files <- readFilesRecursively overlay
@@ -34,12 +40,14 @@ installPackage Package {installScript} = do
         unit $ cmd "mkdir -p" (takeDirectory installTarget)
         unit $ cmd "cp" (overlay </> file) installTarget
         return installTarget
-    return $ InstalledPackage (Package {installScript}) files []
+    return $ InstalledPackage package files []
 
 applyConfig :: [InstalledPackage] -> [Package] -> IO [InstalledPackage]
 applyConfig installedPackages packages = do
   let toUninstall = filter (not . (`elem` packages) . package) installedPackages
       toInstall = filter (not . (`elem` map package installedPackages)) packages
+  hPutStrLn stderr $ "uninstalling: " <> unwords (map (name . package) toUninstall)
+  hPutStrLn stderr $ "installing: " <> unwords (map name toInstall)
   forM_ toUninstall $ \package -> do
     forM_ (files package) $ \file -> do
       unit $ cmd "rm" file

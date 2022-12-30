@@ -9,13 +9,16 @@ import Development.Shake (Stdout (..), cmd, unit)
 import Package
 import System.Directory
 import System.FilePath
+import System.IO
+import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
 
 mkScript :: String -> Package
 mkScript code =
   Package
-    { installScript =
+    { name = "test-script",
+      install =
         unindent
           [i|
             #!/usr/bin/env bash
@@ -26,7 +29,7 @@ mkScript code =
 
 spec :: Spec
 spec = do
-  around_ inTempDirectory $ do
+  around_ (inTempDirectory . hSilence [stderr]) $ do
     describe "installPackage" $ do
       it "allows to install files" $ do
         _ <- installPackage (mkScript "echo foo > file")

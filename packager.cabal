@@ -8,7 +8,7 @@ name:           packager
 version:        0.0.0
 build-type:     Simple
 
-executable doit
+executable packager
   main-is: Main.hs
   other-modules:
       Db
@@ -25,9 +25,11 @@ executable doit
       base
     , directory
     , filepath
+    , getopt-generics
     , interpolate
     , shake
     , temporary
+    , yaml
   default-language: Haskell2010
 
 test-suite spec
@@ -51,10 +53,12 @@ test-suite spec
       base
     , directory
     , filepath
+    , getopt-generics
     , hspec
     , interpolate
     , mockery
     , shake
     , silently
     , temporary
+    , yaml
   default-language: Haskell2010
