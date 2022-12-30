@@ -2,6 +2,7 @@ module Utils where
 
 import Control.Exception
 import Control.Monad
+import Data.Char (isSpace)
 import Data.List
 import Development.Shake (cmd, unit)
 import System.Directory
@@ -29,3 +30,6 @@ readFilesRecursively dir = do
 
 readFiles :: FilePath -> IO [FilePath]
 readFiles dir = filter (not . (`elem` [".", ".."])) <$> getDirectoryContents dir
+
+stripSpaces :: String -> String
+stripSpaces = dropWhile isSpace . reverse . dropWhile isSpace . reverse

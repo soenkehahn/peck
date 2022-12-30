@@ -1,5 +1,4 @@
 - provide a --reinstall flag
-- provide a temporary build directory
 - allow to list all installed package names
 - implement a default db file location
 - implement a default packages file location
