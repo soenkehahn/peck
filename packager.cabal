@@ -12,7 +12,9 @@ executable doit
   main-is: Main.hs
   other-modules:
       OverlayFS
+      Package
       Run
+      Utils
       Paths_packager
   hs-source-dirs:
       app
@@ -32,8 +34,11 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       OverlayFSSpec
+      PackageSpec
       OverlayFS
+      Package
       Run
+      Utils
       Paths_packager
   hs-source-dirs:
       test

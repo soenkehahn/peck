@@ -8,13 +8,12 @@ module OverlayFS
   )
 where
 
-import Control.Exception
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Development.Shake (cmd, unit)
 import System.Directory
 import System.FilePath
-import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
+import Utils
 
 newtype Command = Script FilePath
 
@@ -68,12 +67,3 @@ writeScript dir path code = do
       |]
   unit $ cmd "chmod +x" (dir </> path)
   return (dir </> path)
-
--- 'withSystemTempDirectory' somehow doesn't work, maybe because of the mounts?
-withTempDir :: (FilePath -> IO a) -> IO a
-withTempDir action = do
-  systemTempDir <- getCanonicalTemporaryDirectory
-  bracket (createTempDirectory systemTempDir "packager") removeDir action
-  where
-    removeDir dir = do
-      unit $ cmd "rm" dir "-rf"
