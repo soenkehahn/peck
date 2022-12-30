@@ -27,8 +27,7 @@ instance FromJSON Package
 
 data InstalledPackage = InstalledPackage
   { package :: Package,
-    files :: [FilePath],
-    dirs :: [FilePath]
+    files :: [FilePath]
   }
   deriving stock (Show, Read, Eq)
 
@@ -59,7 +58,7 @@ installPackage package = do
         unit $ cmd "mkdir -p" (takeDirectory installTarget)
         unit $ cmd "cp" source installTarget
         return installTarget
-    return $ InstalledPackage package files []
+    return $ InstalledPackage package files
 
 applyConfig :: Context -> [InstalledPackage] -> [Package] -> IO [InstalledPackage]
 applyConfig context installedPackages packages = do

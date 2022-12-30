@@ -110,7 +110,7 @@ spec = do
           let package = mkScript "echo foo > file"
           installed <- applyConfig [] [package]
           workingDir <- getCurrentDirectory
-          installed `shouldBe` [InstalledPackage package [workingDir </> "file"] []]
+          installed `shouldBe` [InstalledPackage package [workingDir </> "file"]]
 
         it "returns already installed packages" $ do
           let package = mkScript "touch file"
