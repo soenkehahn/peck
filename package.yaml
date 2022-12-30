@@ -1,0 +1,33 @@
+name: packager
+
+ghc-options:
+  - -Wall
+  - -Wno-name-shadowing
+
+dependencies:
+  - base
+  - directory
+  - filepath
+  - interpolate
+  - shake
+  - temporary
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - hspec
+      - mockery
+      - silently
+    ghc-options:
+      - -fdefer-typed-holes
+
+executables:
+  doit:
+    main: Main.hs
+    source-dirs:
+      - app
+      - src

@@ -1,0 +1,52 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.1.
+--
+-- see: https://github.com/sol/hpack
+
+name:           packager
+version:        0.0.0
+build-type:     Simple
+
+executable doit
+  main-is: Main.hs
+  other-modules:
+      OverlayFS
+      Run
+      Paths_packager
+  hs-source-dirs:
+      app
+      src
+  ghc-options: -Wall -Wno-name-shadowing
+  build-depends:
+      base
+    , directory
+    , filepath
+    , interpolate
+    , shake
+    , temporary
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      OverlayFSSpec
+      OverlayFS
+      Run
+      Paths_packager
+  hs-source-dirs:
+      test
+      src
+  ghc-options: -Wall -Wno-name-shadowing -fdefer-typed-holes
+  build-depends:
+      base
+    , directory
+    , filepath
+    , hspec
+    , interpolate
+    , mockery
+    , shake
+    , silently
+    , temporary
+  default-language: Haskell2010
