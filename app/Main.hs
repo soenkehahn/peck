@@ -1,6 +1,7 @@
 module Main where
 
+import Context
 import Run (run)
 
 main :: IO ()
-main = run
+main = run Context.production

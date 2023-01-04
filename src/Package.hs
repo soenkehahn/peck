@@ -19,7 +19,7 @@ import Control.Exception
 import Control.Monad
 import Data.List
 import Data.String
-import Data.Yaml (FromJSON (parseJSON), Object, Parser, Value, withObject, (.!=), (.:), (.:?))
+import Data.Yaml
 import Development.Shake (cmd, unit)
 import GHC.Generics (Generic)
 import OverlayFS (Command (..), withMountedImageFile)
@@ -49,6 +49,8 @@ instance FromJSON Package where
       parseSkip o =
         (o .:? fromString "skip")
           <|> (fmap pure <$> o .: fromString "skip")
+
+instance ToJSON Package
 
 data InstalledPackage = InstalledPackage
   { package :: Package,

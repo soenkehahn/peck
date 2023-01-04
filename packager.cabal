@@ -40,8 +40,8 @@ test-suite spec
   other-modules:
       DbSpec
       OverlayFSSpec
-      PackageConfigSpec
       PackageSpec
+      RunSpec
       TestUtils
       Context
       Db

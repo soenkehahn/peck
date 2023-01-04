@@ -76,6 +76,37 @@ spec = do
         doesFileExist (buildDir </> "file") `shouldReturn` False
         files installedPackage `shouldBe` []
 
+      it "doesn't allow packages to modify existing files" $ \tempDir -> do
+        touch "pre-existing"
+        let package = mkScript [i|echo foo > #{tempDir}/pre-existing|]
+        installPackage package
+          `shouldThrow` ( ==
+                            Error
+                              ( "file already exists: "
+                                  <> tempDir
+                                  </> "pre-existing"
+                              )
+                        )
+
+      it "doesn't install any files if some files already exist" $ \tempDir -> do
+        touch "b"
+        let package =
+              mkScript
+                [i|
+                    cd #{tempDir}
+                    echo foo > a
+                    echo bar > b
+                  |]
+        installPackage package
+          `shouldThrow` ( ==
+                            Error
+                              ( "file already exists: "
+                                  <> tempDir
+                                  </> "b"
+                              )
+                        )
+        doesFileExist "a" `shouldReturn` False
+
       describe "skip" $ do
         it "allows to skip created files from being installed" $ \tempDir -> do
           _ <-

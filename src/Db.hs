@@ -1,28 +1,42 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-{-# HLINT ignore "Use fmap" #-}
 {-# HLINT ignore "Use unless" #-}
 
-module Db where
+module Db
+  ( Db,
+    initialize,
+    readDb,
+    addElement,
+    removeElement,
+  )
+where
 
 import Control.Monad
 import System.Directory
 
-withState_ :: (Show state, Read state) => FilePath -> state -> (state -> IO state) -> IO ()
-withState_ dbPath initial action = do
-  withState dbPath initial $ \state ->
-    ((),) <$> action state
+data Db a where
+  Db :: (Show a, Read a, Eq a) => FilePath -> Db a
 
-withState :: (Show state, Read state) => FilePath -> state -> (state -> IO (a, state)) -> IO a
-withState dbPath initial action = do
-  exists <- doesFileExist dbPath
+initialize :: (Show a, Read a, Eq a) => FilePath -> IO (Db a)
+initialize path = do
+  exists <- doesFileExist path
   when (not exists) $ do
-    writeFile dbPath (show initial)
-  state <- readFile dbPath
-  seq (length state) (return ())
-  (a, next) <- action (read state)
-  let nextString = show next
-  seq (length nextString) (return ())
-  writeFile dbPath nextString
-  return a
+    writeFile path "[]"
+  return $ Db path
+
+readDb :: Db a -> IO [a]
+readDb (Db path) = do
+  s <- readFile path
+  seq (length s) (return ())
+  return $ read s
+
+addElement :: Db a -> a -> IO ()
+addElement db@(Db path) a = do
+  state <- readDb db
+  writeFile path $ show (state ++ [a])
+
+removeElement :: Db a -> a -> IO ()
+removeElement db@(Db path) a = do
+  state <- readDb db
+  writeFile path $ show (filter (/= a) state)

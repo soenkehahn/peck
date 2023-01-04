@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module DbSpec where
 
 import Db
@@ -7,15 +9,26 @@ import Test.Mockery.Directory
 spec :: Spec
 spec = do
   around_ inTempDirectory $ do
-    describe "withState" $ do
-      it "initializes a non-existing db with the default state" $ do
-        withState_ "db" "initial" $ \state -> do
-          state `shouldBe` "initial"
-          return state
+    describe "initialize" $ do
+      it "initializes a non-existing db with the empty state" $ do
+        db :: Db [()] <- initialize "db"
+        readDb db `shouldReturn` []
 
-      it "writes a modified state to disk" $ do
-        withState_ "db" "initial" $ \_ -> do
-          return "next"
-        withState_ "db" "initial" $ \state -> do
-          state `shouldBe` "next"
-          return state
+      it "doesn't modify existing db files" $ do
+        db :: Db Int <- initialize "db"
+        addElement db 42
+        db :: Db Int <- initialize "db"
+        readDb db `shouldReturn` [42]
+
+    it "reads the db state" $ do
+      db :: Db Int <- initialize "db"
+      addElement db 42
+      readDb db `shouldReturn` [42]
+
+    describe "removeElement" $ do
+      it "removes elements" $ do
+        db :: Db Int <- initialize "db"
+        addElement db 42
+        addElement db 23
+        removeElement db 42
+        readDb db `shouldReturn` [23]

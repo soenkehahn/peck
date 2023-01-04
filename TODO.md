@@ -5,6 +5,7 @@
 - allow to list all installed package names
 - implement a default db file location
 - implement a default packages file location
+- don't use shake
 - write db file with json for better backwards compatibility
 - use db file for locking (with sqlite?)
 - come up with better project name

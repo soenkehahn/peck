@@ -20,12 +20,13 @@ data Args = Args
 
 instance HasArguments Args
 
-run :: IO ()
-run = withCli $ \args -> do
+run :: Context -> IO ()
+run context = withCli $ \args -> do
   packages :: PackageConfig <- do
     result <- decodeFileEither (packageFile args)
     case result of
       Right packages -> return packages
       Left e -> throwIO $ ErrorCall $ show e
-  withState_ (dbFile args) ([] :: [InstalledPackage]) $ \installed -> do
-    applyConfig Context.production installed packages
+  db :: Db InstalledPackage <- initialize (dbFile args)
+  applyConfig context db packages
+  return ()

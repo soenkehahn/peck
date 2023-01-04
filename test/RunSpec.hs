@@ -1,92 +1,72 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module PackageConfigSpec where
+module RunSpec where
 
 import Context
+import Control.Exception
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
+import Data.Yaml
+import Db
 import Development.Shake (Stdout (..), cmd, cmd_)
 import Package
 import PackageConfig
+import Run
 import System.Directory
+import System.Environment
 import System.FilePath
 import Test.Hspec
 import Test.Mockery.Directory
 import TestUtils
 
+testRun :: PackageConfig -> IO [InstalledPackage]
+testRun config = do
+  encodeFile "packages.yaml" config
+  let args = ["--db-file", "db", "--package-file", "packages.yaml"]
+  withArgs args $ run Context.test
+  db <- initialize "db"
+  readDb db
+
 spec :: Spec
 spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
-  describe "applyConfig" $ do
-    applyConfig <- return $ applyConfig Context.test
+  describe "run" $ do
     it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
       let package = mkScript [i|echo foo > #{tempDir}/file|]
-      _ <- applyConfig [] [package]
+      _ <- testRun [package]
       readFile "file" `shouldReturn` "foo\n"
 
-    it "uninstalls installed packages that aren't in the configuration anymore" $ \tempDir -> do
-      touch "other-file"
+    it "allows to uninstall packages by removing them from the config" $ \tempDir -> do
       let package = mkScript [i|echo foo > #{tempDir}/file|]
-      installedPackage <- installPackage package
-      readFile "file" `shouldReturn` "foo\n"
-      _ <- applyConfig [installedPackage] []
+      _ <- testRun [package]
+      doesFileExist "file" `shouldReturn` True
+      _ <- testRun []
       doesFileExist "file" `shouldReturn` False
 
     it "doesn't re-install packages that are in the configuration" $ \tempDir -> do
       let package = mkScript [i|echo $RANDOM > #{tempDir}/file|]
-      installedPackage <- installPackage package
+      _ <- testRun [package]
       Stdout (before :: String) <- cmd "cat" "file"
-      _ <- applyConfig [installedPackage] [package]
+      _ <- testRun [package]
       Stdout after <- cmd "cat" "file"
       after `shouldBe` before
 
-    it "doesn't allow packages to modify existing files" $ \tempDir -> do
-      touch "pre-existing"
-      let package = mkScript [i|echo foo > #{tempDir}/pre-existing|]
-      installPackage package
-        `shouldThrow` ( ==
-                          Error
-                            ( "file already exists: "
-                                <> tempDir
-                                </> "pre-existing"
-                            )
-                      )
-
-    it "doesn't install any files if some files already exist" $ \tempDir -> do
-      touch "b"
-      let package =
-            mkScript
-              [i|
-                  cd #{tempDir}
-                  echo foo > a
-                  echo bar > b
-                |]
-      installPackage package
-        `shouldThrow` ( ==
-                          Error
-                            ( "file already exists: "
-                                <> tempDir
-                                </> "b"
-                            )
-                      )
-      doesFileExist "a" `shouldReturn` False
-
-    describe "returned InstalledPackages" $ do
+    describe "written InstalledPackages" $ do
       it "returns newly installed packages" $ \tempDir -> do
         let package = mkScript [i|echo foo > #{tempDir}/file|]
-        installed <- applyConfig [] [package]
+        installed <- testRun [package]
         installed `shouldBe` [InstalledPackage package [tempDir </> "file"]]
 
       it "returns already installed packages" $ \tempDir -> do
         let package = mkScript [i|touch #{tempDir}/file|]
-        installedPackage <- installPackage package
-        installedPackages <- applyConfig [installedPackage] [package]
+        [installedPackage] <- testRun [package]
+        installedPackages <- testRun [package]
         installedPackages `shouldBe` [installedPackage]
 
       it "doesn't returned uninstalled packages" $ \tempDir -> do
         let package = mkScript [i|touch #{tempDir}/file|]
-        installedPackage <- installPackage package
-        installedPackages <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        installedPackages <- testRun []
         installedPackages `shouldBe` []
 
     describe "uninstalling" $ do
@@ -98,8 +78,8 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                     mkdir dir
                     touch dir/file
                   |]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         doesDirectoryExist "dir" `shouldReturn` False
 
       it "removes empty nested directories during installation" $ \tempDir -> do
@@ -110,22 +90,22 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                     mkdir -p foo/bar
                     touch foo/bar/file
                   |]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         doesDirectoryExist "foo" `shouldReturn` False
 
       it "also removes pre-existing empty directories" $ \tempDir -> do
         cmd_ "mkdir dir"
         let package = mkScript [i|touch #{tempDir}/dir/file|]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         doesDirectoryExist "dir" `shouldReturn` False
 
       it "doesn't remove pre-existing files when uninstallating a package" $ \tempDir -> do
         touch "other-file"
         let package = mkScript [i|touch #{tempDir}/file|]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         doesFileExist "other-file" `shouldReturn` True
 
       it "removes installed files set to non-writeable" $ \tempDir -> do
@@ -138,8 +118,8 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                       touch dir/file
                       chmod a-w -R dir
                     |]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         doesFileExist "file" `shouldReturn` False
 
       it "doesn't choke on files created in the temporary build directory" $ \_tempDir -> do
@@ -149,6 +129,20 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                   [i|
                       touch file
                     |]
-        installedPackage <- installPackage package
-        _ <- applyConfig [installedPackage] []
+        _ <- testRun [package]
+        _ <- testRun []
         return ()
+
+    describe "when subsequent packages fail" $ do
+      it "saves successfully installed packages in the db" $ \tempDir -> do
+        let goodPackage = mkScript [i|echo foo > #{tempDir}/file|]
+            failingPackage = mkScript "false"
+            config = [goodPackage, failingPackage]
+        testRun config `shouldThrow` (\(_ :: SomeException) -> True)
+        db :: [InstalledPackage] <- readDb =<< initialize "db"
+        db
+          `shouldBe` [ InstalledPackage
+                         { package = goodPackage,
+                           files = [tempDir </> "file"]
+                         }
+                     ]
