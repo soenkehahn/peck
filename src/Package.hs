@@ -55,7 +55,7 @@ installPackage package = do
     withTempDir $ \buildDir -> do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do
-          files <- listFilesFromOverlay package overlay
+          files <- listFilesFromOverlay buildDir package overlay
           forM_ files $ \(_, installTarget) -> do
             exists <- doesFileExist installTarget
             when exists $ do
@@ -71,11 +71,12 @@ installPackage package = do
             return installTarget
         return $ InstalledPackage package files
 
-listFilesFromOverlay :: Package -> FilePath -> IO [(FilePath, FilePath)]
-listFilesFromOverlay package overlay = do
+listFilesFromOverlay :: FilePath -> Package -> FilePath -> IO [(FilePath, FilePath)]
+listFilesFromOverlay buildDir package overlay = do
   filesInOverlay <- readFilesRecursively overlay
   let copyPairs = map (\file -> (overlay </> file, "/" </> file)) filesInOverlay
-  filterM (fmap not . _isSkipped package . snd) copyPairs
+      withoutTemporaryBuildDir = filter (not . (buildDir `isPrefixOf`) . snd) copyPairs
+  filterM (fmap not . _isSkipped package . snd) withoutTemporaryBuildDir
 
 _isSkipped :: Package -> FilePath -> IO Bool
 _isSkipped package (splitDirectories -> path) =

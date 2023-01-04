@@ -4,10 +4,11 @@
 module PackageSpec where
 
 import Context
+import Data.Bifunctor
 import Data.List
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
-import Development.Shake (Stdout (..), cmd, unit)
+import Development.Shake (Stdout (..), cmd, cmd_)
 import Package
 import PackageConfig
 import System.Directory
@@ -86,8 +87,13 @@ spec = do
         doesDirectoryExist buildDir `shouldReturn` False
 
       it "does not install files created in the temporary build directory" $ \_installDir -> do
-        buildDir <- fmap stripSpaces $ capture_ $ installPackage $ mkScript [i|echo foo > file ; pwd|]
+        (buildDir, installedPackage) <-
+          fmap (first stripSpaces) $
+            capture $
+              installPackage $
+                mkScript [i|echo foo > file ; pwd|]
         doesFileExist (buildDir </> "file") `shouldReturn` False
+        files installedPackage `shouldBe` []
 
       describe "skip" $ do
         it "allows to skip created files from being installed" $ \installDir -> do
@@ -229,7 +235,7 @@ spec = do
           doesDirectoryExist "foo" `shouldReturn` False
 
         it "also removes pre-existing empty directories" $ \installDir -> do
-          unit $ cmd "mkdir dir"
+          cmd_ "mkdir dir"
           let package = mkScript [i|touch #{installDir}/dir/file|]
           installedPackage <- installPackage package
           _ <- applyConfig [installedPackage] []
@@ -255,3 +261,14 @@ spec = do
           installedPackage <- installPackage package
           _ <- applyConfig [installedPackage] []
           doesFileExist "file" `shouldReturn` False
+
+        it "doesn't choke on files created in the temporary build directory" $ \_installDir -> do
+          let package =
+                mkScript $
+                  unindent
+                    [i|
+                      touch file
+                    |]
+          installedPackage <- installPackage package
+          _ <- applyConfig [installedPackage] []
+          return ()

@@ -7,6 +7,7 @@ import Data.List
 import Development.Shake (cmd, unit)
 import System.Directory
 import System.FilePath
+import System.IO
 import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 
 -- 'withSystemTempDirectory' somehow doesn't work, maybe because of the mounts?
@@ -33,3 +34,6 @@ readFiles dir = filter (not . (`elem` [".", ".."])) <$> getDirectoryContents dir
 
 stripSpaces :: String -> String
 stripSpaces = dropWhile isSpace . reverse . dropWhile isSpace . reverse
+
+deb :: Show a => a -> IO ()
+deb = hPrint stderr
