@@ -61,6 +61,21 @@ newtype Error = Error String
 
 instance Exception Error
 
+data CopyPair = FilePath :-> FilePath
+
+infix 4 :->
+
+source :: CopyPair -> FilePath
+source (a :-> _) = a
+
+target :: CopyPair -> FilePath
+target (_ :-> b) = b
+
+copy :: CopyPair -> IO ()
+copy pair = do
+  unit $ cmd "mkdir -p" (takeDirectory $ target pair)
+  unit $ cmd "cp" (source pair) (target pair)
+
 installPackage :: Package -> IO InstalledPackage
 installPackage package = do
   withTempDir $ \((</> "install.sh") -> installScript) -> do
@@ -70,27 +85,19 @@ installPackage package = do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do
           files <- listFilesFromOverlay buildDir package overlay
-          forM_ files $ \(_, installTarget) -> do
-            exists <- doesFileExist installTarget
-            when exists $ do
-              throwIO $ Error $ "file already exists: " <> installTarget
-          forM files $ \(source, installTarget) -> do
-            exists <- doesFileExist installTarget
-            when exists $ do
-              throwIO $
-                Error $
-                  "PANIC: while installing package, found existing file: " <> installTarget
-            unit $ cmd "mkdir -p" (takeDirectory installTarget)
-            unit $ cmd "cp" source installTarget
-            return installTarget
+          forM_ files $ throwOnFileClash "file already exists"
+          forM files $ \pair -> do
+            throwOnFileClash "PANIC: while installing package, found existing file" pair
+            copy pair
+            return $ target pair
         return $ InstalledPackage package files
 
-listFilesFromOverlay :: FilePath -> Package -> FilePath -> IO [(FilePath, FilePath)]
+listFilesFromOverlay :: FilePath -> Package -> FilePath -> IO [CopyPair]
 listFilesFromOverlay buildDir package overlay = do
   filesInOverlay <- readFilesRecursively overlay
-  let copyPairs = map (\file -> (overlay </> file, "/" </> file)) filesInOverlay
-      withoutTemporaryBuildDir = filter (not . (buildDir `isPrefixOf`) . snd) copyPairs
-  filterM (fmap not . _isSkipped package . snd) withoutTemporaryBuildDir
+  let copyPairs = map (\file -> overlay </> file :-> "/" </> file) filesInOverlay
+      withoutTemporaryBuildDir = filter (not . (buildDir `isPrefixOf`) . target) copyPairs
+  filterM (fmap not . _isSkipped package . target) withoutTemporaryBuildDir
 
 _isSkipped :: Package -> FilePath -> IO Bool
 _isSkipped package (splitDirectories -> path) = do
@@ -103,6 +110,12 @@ expandTilde = \case
     home <- getEnv "HOME"
     return $ splitDirectories home ++ rest
   pattern -> return pattern
+
+throwOnFileClash :: String -> CopyPair -> IO ()
+throwOnFileClash error pair = do
+  exists <- doesFileExist $ target pair
+  when exists $ do
+    throwIO $ Error $ error <> ": " <> target pair
 
 uninstall :: InstalledPackage -> IO ()
 uninstall package =
