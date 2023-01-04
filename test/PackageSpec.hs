@@ -9,7 +9,9 @@ import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Development.Shake (Stdout (..), cmd, unit)
 import Package
+import PackageConfig
 import System.Directory
+import System.Environment
 import System.FilePath
 import System.IO.Silently
 import Test.Hspec
@@ -20,6 +22,7 @@ mkScript :: String -> Package
 mkScript code =
   Package
     { name = "test-script",
+      skip = Nothing,
       install =
         unindent
           [i|
@@ -27,6 +30,12 @@ mkScript code =
 
             #{code}
           |]
+    }
+
+skipScript :: String -> String -> Package
+skipScript skip code =
+  (mkScript code)
+    { skip = Just skip
     }
 
 spec :: Spec
@@ -39,8 +48,7 @@ spec = do
 
       it "returns created files" $ \installDir -> do
         installedPackage <- installPackage (mkScript [i|echo foo > #{installDir}/file|])
-        workingDir <- getCurrentDirectory
-        files installedPackage `shouldBe` [workingDir </> "file"]
+        files installedPackage `shouldBe` [installDir </> "file"]
 
       it "returns multiple created files" $ \installDir -> do
         installedPackage <-
@@ -52,8 +60,7 @@ spec = do
                   touch foo
                   touch bar
                 |]
-        workingDir <- getCurrentDirectory
-        files installedPackage `shouldBe` [workingDir </> "bar", workingDir </> "foo"]
+        files installedPackage `shouldBe` [installDir </> "bar", installDir </> "foo"]
 
       it "returns files in subdirectories" $ \installDir -> do
         installedPackage <-
@@ -65,24 +72,64 @@ spec = do
                   mkdir foo
                   touch foo/bar
                 |]
-        workingDir <- getCurrentDirectory
-        files installedPackage `shouldBe` [workingDir </> "foo/bar"]
+        files installedPackage `shouldBe` [installDir </> "foo/bar"]
 
       it "allows to install hidden files" $ \installDir -> do
         installedPackage <- installPackage (mkScript [i|touch #{installDir}/.hidden|])
-        workingDir <- getCurrentDirectory
-        files installedPackage `shouldBe` [workingDir </> ".hidden"]
+        files installedPackage `shouldBe` [installDir </> ".hidden"]
         readFile ".hidden" `shouldReturn` ""
 
-      it "runs install script in a temporary build directory" $ \_installDir -> do
-        output <- fmap stripSpaces $ capture_ $ installPackage (mkScript "pwd")
-        output `shouldSatisfy` ("/tmp/" `isPrefixOf`)
-        workingDir <- getCurrentDirectory
-        stripSpaces output `shouldSatisfy` (/= workingDir)
+      it "runs install script in a temporary build directory" $ \installDir -> do
+        buildDir <- fmap stripSpaces $ capture_ $ installPackage (mkScript "pwd")
+        buildDir `shouldSatisfy` ("/tmp/" `isPrefixOf`)
+        stripSpaces buildDir `shouldSatisfy` (/= installDir)
+        doesDirectoryExist buildDir `shouldReturn` False
 
       it "does not install files created in the temporary build directory" $ \_installDir -> do
-        tmpDir <- fmap stripSpaces $ capture_ $ installPackage $ mkScript [i|echo foo > file ; pwd|]
-        doesFileExist (tmpDir </> "file") `shouldReturn` False
+        buildDir <- fmap stripSpaces $ capture_ $ installPackage $ mkScript [i|echo foo > file ; pwd|]
+        doesFileExist (buildDir </> "file") `shouldReturn` False
+
+      describe "skip" $ do
+        it "allows to skip created files from being installed" $ \installDir -> do
+          _ <-
+            installPackage $
+              skipScript (installDir </> "file") $
+                unindent
+                  [i|
+                    cd #{installDir}
+                    touch file
+                  |]
+          doesFileExist "file" `shouldReturn` False
+
+        it "allows to skip created directories from being installed" $ \installDir -> do
+          _ <-
+            installPackage $
+              skipScript (installDir </> "dir") $
+                unindent
+                  [i|
+                    cd #{installDir}
+                    mkdir dir
+                    touch dir/file
+                  |]
+          doesFileExist "dir/file" `shouldReturn` False
+
+        it "allows to specify '~' for the $HOME directory" $ \_installDir -> do
+          home <- getEnv "HOME"
+          _isSkipped (skipScript "~/file" "") (home </> "file") `shouldReturn` True
+          _isSkipped (skipScript "~/dir" "") (home </> "dir/file") `shouldReturn` True
+
+        it "uninstalls unskipped files correctly" $ \installDir -> do
+          installedPackage <-
+            installPackage $
+              skipScript (installDir </> "skipped") $
+                unindent
+                  [i|
+                    cd #{installDir}
+                    touch skipped
+                    touch unskipped
+                  |]
+          uninstall installedPackage
+          doesFileExist "unskipped" `shouldReturn` False
 
     describe "applyConfig" $ do
       applyConfig <- return $ applyConfig Context.test
@@ -110,12 +157,11 @@ spec = do
       it "doesn't allow packages to modify existing files" $ \installDir -> do
         touch "pre-existing"
         let package = mkScript [i|echo foo > #{installDir}/pre-existing|]
-        workingDir <- getCurrentDirectory
         installPackage package
           `shouldThrow` ( ==
                             Error
                               ( "file already exists: "
-                                  <> workingDir
+                                  <> installDir
                                   </> "pre-existing"
                               )
                         )
@@ -129,12 +175,11 @@ spec = do
                   echo foo > a
                   echo bar > b
                 |]
-        workingDir <- getCurrentDirectory
         installPackage package
           `shouldThrow` ( ==
                             Error
                               ( "file already exists: "
-                                  <> workingDir
+                                  <> installDir
                                   </> "b"
                               )
                         )
@@ -144,8 +189,7 @@ spec = do
         it "returns newly installed packages" $ \installDir -> do
           let package = mkScript [i|echo foo > #{installDir}/file|]
           installed <- applyConfig [] [package]
-          workingDir <- getCurrentDirectory
-          installed `shouldBe` [InstalledPackage package [workingDir </> "file"]]
+          installed `shouldBe` [InstalledPackage package [installDir </> "file"]]
 
         it "returns already installed packages" $ \installDir -> do
           let package = mkScript [i|touch #{installDir}/file|]

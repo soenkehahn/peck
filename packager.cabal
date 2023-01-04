@@ -15,6 +15,7 @@ executable packager
       Db
       OverlayFS
       Package
+      PackageConfig
       Run
       Utils
       Paths_packager
@@ -44,6 +45,7 @@ test-suite spec
       Db
       OverlayFS
       Package
+      PackageConfig
       Run
       Utils
       Paths_packager

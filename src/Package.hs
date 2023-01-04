@@ -1,10 +1,18 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Package where
+module Package
+  ( Package (..),
+    InstalledPackage (..),
+    Error (..),
+    installPackage,
+    uninstall,
+    _isSkipped,
+  )
+where
 
-import Context
 import Control.Exception
 import Control.Monad
 import Data.List
@@ -13,13 +21,15 @@ import Development.Shake (cmd, unit)
 import GHC.Generics (Generic)
 import OverlayFS (Command (..), withMountedImageFile)
 import System.Directory
-import System.FilePath (takeDirectory, (</>))
+import System.Environment
+import System.FilePath (splitDirectories, takeDirectory, (</>))
 import System.IO
 import Utils
 import Prelude hiding (log)
 
 data Package = Package
   { name :: String,
+    skip :: Maybe String,
     install :: String
   }
   deriving stock (Show, Read, Eq, Generic)
@@ -45,9 +55,7 @@ installPackage package = do
     withTempDir $ \buildDir -> do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do
-          files <-
-            map (\file -> (overlay </> file, "/" </> file))
-              <$> readFilesRecursively overlay
+          files <- listFilesFromOverlay package overlay
           forM_ files $ \(_, installTarget) -> do
             exists <- doesFileExist installTarget
             when exists $ do
@@ -63,22 +71,32 @@ installPackage package = do
             return installTarget
         return $ InstalledPackage package files
 
-applyConfig :: Context -> [InstalledPackage] -> [Package] -> IO [InstalledPackage]
-applyConfig context installedPackages packages = do
-  let toUninstall = filter (not . (`elem` packages) . package) installedPackages
-      toInstall = filter (not . (`elem` map package installedPackages)) packages
-  log context $ "uninstalling: " <> unwords (map (name . package) toUninstall)
-  log context $ "installing: " <> unwords (map name toInstall)
-  forM_ toUninstall $ \package -> do
-    forM_ (files package) $ \file -> do
-      unit $ cmd "rm" file
-      removeEmptyParents file
-  newlyInstalled <- forM toInstall $ \package -> do
-    installPackage package
-  return $
-    nub $
-      filter (not . (`elem` toUninstall)) $
-        installedPackages ++ newlyInstalled
+listFilesFromOverlay :: Package -> FilePath -> IO [(FilePath, FilePath)]
+listFilesFromOverlay package overlay = do
+  filesInOverlay <- readFilesRecursively overlay
+  let copyPairs = map (\file -> (overlay </> file, "/" </> file)) filesInOverlay
+  filterM (fmap not . _isSkipped package . snd) copyPairs
+
+_isSkipped :: Package -> FilePath -> IO Bool
+_isSkipped package (splitDirectories -> path) =
+  case skip package of
+    Nothing -> return False
+    Just pattern -> do
+      pattern <- expandTilde $ splitDirectories pattern
+      return $ pattern `isPrefixOf` path
+
+expandTilde :: [String] -> IO [String]
+expandTilde = \case
+  "~" : rest -> do
+    home <- getEnv "HOME"
+    return $ splitDirectories home ++ rest
+  pattern -> return pattern
+
+uninstall :: InstalledPackage -> IO ()
+uninstall package =
+  forM_ (files package) $ \file -> do
+    unit $ cmd "rm" file
+    removeEmptyParents file
 
 removeEmptyParents :: FilePath -> IO ()
 removeEmptyParents path = do

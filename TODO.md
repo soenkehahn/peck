@@ -1,3 +1,8 @@
+- add a skip package field
+- don't track hidden files in the temporary directory
+- make PackageConfig an object for future-proofing
+- install packages successfully, even if other packages afterwards fail
+- list all files of a package (after installation? during installation?)
 - provide a --reinstall flag
 - allow to list all installed package names
 - implement a default db file location

@@ -9,6 +9,7 @@ import Control.Exception
 import Data.Yaml
 import Db
 import Package
+import PackageConfig
 import WithCli
 
 data Args = Args
@@ -21,7 +22,7 @@ instance HasArguments Args
 
 run :: IO ()
 run = withCli $ \args -> do
-  packages :: [Package] <- do
+  packages :: PackageConfig <- do
     result <- decodeFileEither (packageFile args)
     case result of
       Right packages -> return packages
