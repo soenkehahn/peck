@@ -40,7 +40,9 @@ test-suite spec
   other-modules:
       DbSpec
       OverlayFSSpec
+      PackageConfigSpec
       PackageSpec
+      TestUtils
       Context
       Db
       OverlayFS
