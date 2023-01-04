@@ -44,50 +44,50 @@ spec :: Spec
 spec = do
   around (inTempDirectory . (getCurrentDirectory >>=)) $ do
     describe "installPackage" $ do
-      it "allows to install files" $ \installDir -> do
-        _ <- installPackage (mkScript [i|echo foo > #{installDir}/file|])
+      it "allows to install files" $ \tempDir -> do
+        _ <- installPackage (mkScript [i|echo foo > #{tempDir}/file|])
         readFile "file" `shouldReturn` "foo\n"
 
-      it "returns created files" $ \installDir -> do
-        installedPackage <- installPackage (mkScript [i|echo foo > #{installDir}/file|])
-        files installedPackage `shouldBe` [installDir </> "file"]
+      it "returns created files" $ \tempDir -> do
+        installedPackage <- installPackage (mkScript [i|echo foo > #{tempDir}/file|])
+        files installedPackage `shouldBe` [tempDir </> "file"]
 
-      it "returns multiple created files" $ \installDir -> do
+      it "returns multiple created files" $ \tempDir -> do
         installedPackage <-
           installPackage $
             mkScript $
               unindent
                 [i|
-                  cd #{installDir}
+                  cd #{tempDir}
                   touch foo
                   touch bar
                 |]
-        files installedPackage `shouldBe` [installDir </> "bar", installDir </> "foo"]
+        files installedPackage `shouldBe` [tempDir </> "bar", tempDir </> "foo"]
 
-      it "returns files in subdirectories" $ \installDir -> do
+      it "returns files in subdirectories" $ \tempDir -> do
         installedPackage <-
           installPackage $
             mkScript $
               unindent
                 [i|
-                  cd #{installDir}
+                  cd #{tempDir}
                   mkdir foo
                   touch foo/bar
                 |]
-        files installedPackage `shouldBe` [installDir </> "foo/bar"]
+        files installedPackage `shouldBe` [tempDir </> "foo/bar"]
 
-      it "allows to install hidden files" $ \installDir -> do
-        installedPackage <- installPackage (mkScript [i|touch #{installDir}/.hidden|])
-        files installedPackage `shouldBe` [installDir </> ".hidden"]
+      it "allows to install hidden files" $ \tempDir -> do
+        installedPackage <- installPackage (mkScript [i|touch #{tempDir}/.hidden|])
+        files installedPackage `shouldBe` [tempDir </> ".hidden"]
         readFile ".hidden" `shouldReturn` ""
 
-      it "runs install script in a temporary build directory" $ \installDir -> do
+      it "runs install script in a temporary build directory" $ \tempDir -> do
         buildDir <- fmap stripSpaces $ capture_ $ installPackage (mkScript "pwd")
         buildDir `shouldSatisfy` ("/tmp/" `isPrefixOf`)
-        stripSpaces buildDir `shouldSatisfy` (/= installDir)
+        stripSpaces buildDir `shouldSatisfy` (/= tempDir)
         doesDirectoryExist buildDir `shouldReturn` False
 
-      it "does not install files created in the temporary build directory" $ \_installDir -> do
+      it "does not install files created in the temporary build directory" $ \_tempDir -> do
         (buildDir, installedPackage) <-
           fmap (first stripSpaces) $
             capture $
@@ -97,41 +97,41 @@ spec = do
         files installedPackage `shouldBe` []
 
       describe "skip" $ do
-        it "allows to skip created files from being installed" $ \installDir -> do
+        it "allows to skip created files from being installed" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [installDir </> "file"] $
+              skipScript [tempDir </> "file"] $
                 unindent
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     touch file
                   |]
           doesFileExist "file" `shouldReturn` False
 
-        it "allows to skip created directories from being installed" $ \installDir -> do
+        it "allows to skip created directories from being installed" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [installDir </> "dir"] $
+              skipScript [tempDir </> "dir"] $
                 unindent
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     mkdir dir
                     touch dir/file
                   |]
           doesFileExist "dir/file" `shouldReturn` False
 
-        it "allows to specify '~' for the $HOME directory" $ \_installDir -> do
+        it "allows to specify '~' for the $HOME directory" $ \_tempDir -> do
           home <- getEnv "HOME"
           _isSkipped (skipScript ["~/file"] "") (home </> "file") `shouldReturn` True
           _isSkipped (skipScript ["~/dir"] "") (home </> "dir/file") `shouldReturn` True
 
-        it "allows to skip multiple patterns" $ \installDir -> do
+        it "allows to skip multiple patterns" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [installDir </> "a", installDir </> "b"] $
+              skipScript [tempDir </> "a", tempDir </> "b"] $
                 unindent
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     touch a
                     touch b
                   |]
@@ -139,7 +139,7 @@ spec = do
           doesFileExist "b" `shouldReturn` False
 
         describe "parsing the skip field" $ do
-          it "parses strings" $ \_installDir -> do
+          it "parses strings" $ \_tempDir -> do
             let yaml =
                   [i|
                     name: foo
@@ -149,7 +149,7 @@ spec = do
             parsed <- decodeThrow (cs yaml)
             skip parsed `shouldBe` ["skipped"]
 
-          it "parses lists of strings" $ \_installDir -> do
+          it "parses lists of strings" $ \_tempDir -> do
             let yaml =
                   [i|
                     name: foo
@@ -161,7 +161,7 @@ spec = do
             parsed <- decodeThrow (cs yaml)
             skip parsed `shouldBe` ["a", "b"]
 
-          it "parses omitted skip fields" $ \_installDir -> do
+          it "parses omitted skip fields" $ \_tempDir -> do
             let yaml =
                   [i|
                     name: foo
@@ -170,13 +170,13 @@ spec = do
             parsed <- decodeThrow (cs yaml)
             skip parsed `shouldBe` []
 
-        it "uninstalls unskipped files correctly" $ \installDir -> do
+        it "uninstalls unskipped files correctly" $ \tempDir -> do
           installedPackage <-
             installPackage $
-              skipScript [installDir </> "skipped"] $
+              skipScript [tempDir </> "skipped"] $
                 unindent
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     touch skipped
                     touch unskipped
                   |]
@@ -185,45 +185,45 @@ spec = do
 
     describe "applyConfig" $ do
       applyConfig <- return $ applyConfig Context.test
-      it "installs packages that aren't installed, but in the configuration" $ \installDir -> do
-        let package = mkScript [i|echo foo > #{installDir}/file|]
+      it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
+        let package = mkScript [i|echo foo > #{tempDir}/file|]
         _ <- applyConfig [] [package]
         readFile "file" `shouldReturn` "foo\n"
 
-      it "uninstalls installed packages that aren't in the configuration anymore" $ \installDir -> do
+      it "uninstalls installed packages that aren't in the configuration anymore" $ \tempDir -> do
         touch "other-file"
-        let package = mkScript [i|echo foo > #{installDir}/file|]
+        let package = mkScript [i|echo foo > #{tempDir}/file|]
         installedPackage <- installPackage package
         readFile "file" `shouldReturn` "foo\n"
         _ <- applyConfig [installedPackage] []
         doesFileExist "file" `shouldReturn` False
 
-      it "doesn't re-install packages that are in the configuration" $ \installDir -> do
-        let package = mkScript [i|echo $RANDOM > #{installDir}/file|]
+      it "doesn't re-install packages that are in the configuration" $ \tempDir -> do
+        let package = mkScript [i|echo $RANDOM > #{tempDir}/file|]
         installedPackage <- installPackage package
         Stdout (before :: String) <- cmd "cat" "file"
         _ <- applyConfig [installedPackage] [package]
         Stdout after <- cmd "cat" "file"
         after `shouldBe` before
 
-      it "doesn't allow packages to modify existing files" $ \installDir -> do
+      it "doesn't allow packages to modify existing files" $ \tempDir -> do
         touch "pre-existing"
-        let package = mkScript [i|echo foo > #{installDir}/pre-existing|]
+        let package = mkScript [i|echo foo > #{tempDir}/pre-existing|]
         installPackage package
           `shouldThrow` ( ==
                             Error
                               ( "file already exists: "
-                                  <> installDir
+                                  <> tempDir
                                   </> "pre-existing"
                               )
                         )
 
-      it "doesn't install any files if some files already exist" $ \installDir -> do
+      it "doesn't install any files if some files already exist" $ \tempDir -> do
         touch "b"
         let package =
               mkScript
                 [i|
-                  cd #{installDir}
+                  cd #{tempDir}
                   echo foo > a
                   echo bar > b
                 |]
@@ -231,36 +231,36 @@ spec = do
           `shouldThrow` ( ==
                             Error
                               ( "file already exists: "
-                                  <> installDir
+                                  <> tempDir
                                   </> "b"
                               )
                         )
         doesFileExist "a" `shouldReturn` False
 
       describe "returned InstalledPackages" $ do
-        it "returns newly installed packages" $ \installDir -> do
-          let package = mkScript [i|echo foo > #{installDir}/file|]
+        it "returns newly installed packages" $ \tempDir -> do
+          let package = mkScript [i|echo foo > #{tempDir}/file|]
           installed <- applyConfig [] [package]
-          installed `shouldBe` [InstalledPackage package [installDir </> "file"]]
+          installed `shouldBe` [InstalledPackage package [tempDir </> "file"]]
 
-        it "returns already installed packages" $ \installDir -> do
-          let package = mkScript [i|touch #{installDir}/file|]
+        it "returns already installed packages" $ \tempDir -> do
+          let package = mkScript [i|touch #{tempDir}/file|]
           installedPackage <- installPackage package
           installedPackages <- applyConfig [installedPackage] [package]
           installedPackages `shouldBe` [installedPackage]
 
-        it "doesn't returned uninstalled packages" $ \installDir -> do
-          let package = mkScript [i|touch #{installDir}/file|]
+        it "doesn't returned uninstalled packages" $ \tempDir -> do
+          let package = mkScript [i|touch #{tempDir}/file|]
           installedPackage <- installPackage package
           installedPackages <- applyConfig [installedPackage] []
           installedPackages `shouldBe` []
 
       describe "uninstalling" $ do
-        it "removes empty directories during installation" $ \installDir -> do
+        it "removes empty directories during installation" $ \tempDir -> do
           let package =
                 mkScript
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     mkdir dir
                     touch dir/file
                   |]
@@ -268,11 +268,11 @@ spec = do
           _ <- applyConfig [installedPackage] []
           doesDirectoryExist "dir" `shouldReturn` False
 
-        it "removes empty nested directories during installation" $ \installDir -> do
+        it "removes empty nested directories during installation" $ \tempDir -> do
           let package =
                 mkScript
                   [i|
-                    cd #{installDir}
+                    cd #{tempDir}
                     mkdir -p foo/bar
                     touch foo/bar/file
                   |]
@@ -280,26 +280,26 @@ spec = do
           _ <- applyConfig [installedPackage] []
           doesDirectoryExist "foo" `shouldReturn` False
 
-        it "also removes pre-existing empty directories" $ \installDir -> do
+        it "also removes pre-existing empty directories" $ \tempDir -> do
           cmd_ "mkdir dir"
-          let package = mkScript [i|touch #{installDir}/dir/file|]
+          let package = mkScript [i|touch #{tempDir}/dir/file|]
           installedPackage <- installPackage package
           _ <- applyConfig [installedPackage] []
           doesDirectoryExist "dir" `shouldReturn` False
 
-        it "doesn't remove pre-existing files when uninstallating a package" $ \installDir -> do
+        it "doesn't remove pre-existing files when uninstallating a package" $ \tempDir -> do
           touch "other-file"
-          let package = mkScript [i|touch #{installDir}/file|]
+          let package = mkScript [i|touch #{tempDir}/file|]
           installedPackage <- installPackage package
           _ <- applyConfig [installedPackage] []
           doesFileExist "other-file" `shouldReturn` True
 
-        it "removes installed files set to non-writeable" $ \installDir -> do
+        it "removes installed files set to non-writeable" $ \tempDir -> do
           let package =
                 mkScript $
                   unindent
                     [i|
-                      cd #{installDir}
+                      cd #{tempDir}
                       mkdir dir
                       touch dir/file
                       chmod a-w -R dir
@@ -308,7 +308,7 @@ spec = do
           _ <- applyConfig [installedPackage] []
           doesFileExist "file" `shouldReturn` False
 
-        it "doesn't choke on files created in the temporary build directory" $ \_installDir -> do
+        it "doesn't choke on files created in the temporary build directory" $ \_tempDir -> do
           let package =
                 mkScript $
                   unindent
