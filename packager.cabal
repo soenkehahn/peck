@@ -63,6 +63,7 @@ test-suite spec
     , mockery
     , shake
     , silently
+    , string-conversions
     , temporary
     , yaml
   default-language: Haskell2010

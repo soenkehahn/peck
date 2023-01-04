@@ -24,6 +24,7 @@ tests:
       - hspec
       - mockery
       - silently
+      - string-conversions
     ghc-options:
       - -fdefer-typed-holes
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -13,10 +14,12 @@ module Package
   )
 where
 
+import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Data.List
-import Data.Yaml (FromJSON)
+import Data.String
+import Data.Yaml (FromJSON (parseJSON), Object, Parser, Value, withObject, (.!=), (.:), (.:?))
 import Development.Shake (cmd, unit)
 import GHC.Generics (Generic)
 import OverlayFS (Command (..), withMountedImageFile)
@@ -29,12 +32,23 @@ import Prelude hiding (log)
 
 data Package = Package
   { name :: String,
-    skip :: Maybe String,
+    skip :: [String],
     install :: String
   }
   deriving stock (Show, Read, Eq, Generic)
 
-instance FromJSON Package
+instance FromJSON Package where
+  parseJSON :: Value -> Parser Package
+  parseJSON = withObject "Package" $ \o ->
+    Package
+      <$> (o .: fromString "name")
+      <*> parseSkip o .!= []
+      <*> (o .: fromString "install")
+    where
+      parseSkip :: Object -> Parser (Maybe [String])
+      parseSkip o =
+        (o .:? fromString "skip")
+          <|> (fmap pure <$> o .: fromString "skip")
 
 data InstalledPackage = InstalledPackage
   { package :: Package,
@@ -79,12 +93,9 @@ listFilesFromOverlay buildDir package overlay = do
   filterM (fmap not . _isSkipped package . snd) withoutTemporaryBuildDir
 
 _isSkipped :: Package -> FilePath -> IO Bool
-_isSkipped package (splitDirectories -> path) =
-  case skip package of
-    Nothing -> return False
-    Just pattern -> do
-      pattern <- expandTilde $ splitDirectories pattern
-      return $ pattern `isPrefixOf` path
+_isSkipped package (splitDirectories -> path) = do
+  patterns <- mapM (expandTilde . splitDirectories) $ skip package
+  return $ any (`isPrefixOf` path) patterns
 
 expandTilde :: [String] -> IO [String]
 expandTilde = \case

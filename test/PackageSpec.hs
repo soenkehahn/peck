@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -6,8 +7,10 @@ module PackageSpec where
 import Context
 import Data.Bifunctor
 import Data.List
+import Data.String.Conversions
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
+import Data.Yaml
 import Development.Shake (Stdout (..), cmd, cmd_)
 import Package
 import PackageConfig
@@ -23,7 +26,7 @@ mkScript :: String -> Package
 mkScript code =
   Package
     { name = "test-script",
-      skip = Nothing,
+      skip = [],
       install =
         unindent
           [i|
@@ -33,11 +36,9 @@ mkScript code =
           |]
     }
 
-skipScript :: String -> String -> Package
+skipScript :: [String] -> String -> Package
 skipScript skip code =
-  (mkScript code)
-    { skip = Just skip
-    }
+  (mkScript code) {skip}
 
 spec :: Spec
 spec = do
@@ -99,7 +100,7 @@ spec = do
         it "allows to skip created files from being installed" $ \installDir -> do
           _ <-
             installPackage $
-              skipScript (installDir </> "file") $
+              skipScript [installDir </> "file"] $
                 unindent
                   [i|
                     cd #{installDir}
@@ -110,7 +111,7 @@ spec = do
         it "allows to skip created directories from being installed" $ \installDir -> do
           _ <-
             installPackage $
-              skipScript (installDir </> "dir") $
+              skipScript [installDir </> "dir"] $
                 unindent
                   [i|
                     cd #{installDir}
@@ -121,13 +122,58 @@ spec = do
 
         it "allows to specify '~' for the $HOME directory" $ \_installDir -> do
           home <- getEnv "HOME"
-          _isSkipped (skipScript "~/file" "") (home </> "file") `shouldReturn` True
-          _isSkipped (skipScript "~/dir" "") (home </> "dir/file") `shouldReturn` True
+          _isSkipped (skipScript ["~/file"] "") (home </> "file") `shouldReturn` True
+          _isSkipped (skipScript ["~/dir"] "") (home </> "dir/file") `shouldReturn` True
+
+        it "allows to skip multiple patterns" $ \installDir -> do
+          _ <-
+            installPackage $
+              skipScript [installDir </> "a", installDir </> "b"] $
+                unindent
+                  [i|
+                    cd #{installDir}
+                    touch a
+                    touch b
+                  |]
+          doesFileExist "a" `shouldReturn` False
+          doesFileExist "b" `shouldReturn` False
+
+        describe "parsing the skip field" $ do
+          it "parses strings" $ \_installDir -> do
+            let yaml =
+                  [i|
+                    name: foo
+                    skip: skipped
+                    install: ""
+                  |]
+            parsed <- decodeThrow (cs yaml)
+            skip parsed `shouldBe` ["skipped"]
+
+          it "parses lists of strings" $ \_installDir -> do
+            let yaml =
+                  [i|
+                    name: foo
+                    skip:
+                      - a
+                      - b
+                    install: ""
+                  |]
+            parsed <- decodeThrow (cs yaml)
+            skip parsed `shouldBe` ["a", "b"]
+
+          it "parses omitted skip fields" $ \_installDir -> do
+            let yaml =
+                  [i|
+                    name: foo
+                    install: ""
+                  |]
+            parsed <- decodeThrow (cs yaml)
+            skip parsed `shouldBe` []
 
         it "uninstalls unskipped files correctly" $ \installDir -> do
           installedPackage <-
             installPackage $
-              skipScript (installDir </> "skipped") $
+              skipScript [installDir </> "skipped"] $
                 unindent
                   [i|
                     cd #{installDir}
