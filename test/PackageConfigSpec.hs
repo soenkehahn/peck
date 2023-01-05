@@ -28,3 +28,43 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                              install = "install script\n"
                            }
                        ]
+
+    describe "dhall" $ do
+      it "allows to use dhall for configuration" $ \_tempDir -> do
+        writeFile "packages.dhall" $
+          unindent
+            [i|
+              [
+                { name = "generated package"
+                , skip = [] : List Text
+                , install = "install script"
+                }
+              ]
+            |]
+        readPackageConfig "packages.dhall"
+          `shouldReturn` [ Package
+                             { name = "generated package",
+                               skip = [],
+                               install = "install script"
+                             }
+                         ]
+
+      it "allows to omit optional fields, e.g. 'skip'" $ \_tempDir -> do
+        writeFile "packages.dhall" $
+          unindent
+            [i|
+              let def = { skip = [] : List Text }
+              in [
+                def // {
+                  name = "generated package",
+                  install = "install script"
+                }
+              ]
+            |]
+        readPackageConfig "packages.dhall"
+          `shouldReturn` [ Package
+                             { name = "generated package",
+                               skip = [],
+                               install = "install script"
+                             }
+                         ]

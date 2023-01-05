@@ -21,6 +21,7 @@ import Data.List
 import Data.String
 import Data.Yaml
 import Development.Shake (cmd, unit)
+import Dhall (FromDhall)
 import GHC.Generics (Generic)
 import OverlayFS (Command (..), withMountedImageFile)
 import System.Directory
@@ -51,6 +52,8 @@ instance FromJSON Package where
           <|> (fmap pure <$> o .: fromString "skip")
 
 instance ToJSON Package
+
+instance FromDhall Package
 
 data InstalledPackage = InstalledPackage
   { package :: Package,

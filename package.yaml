@@ -6,6 +6,7 @@ ghc-options:
 
 dependencies:
   - base
+  - dhall
   - directory
   - filepath
   - getopt-generics

@@ -146,3 +146,22 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
                            files = [tempDir </> "file"]
                          }
                      ]
+
+    it "allows to use dhall for configuration" $ \tempDir -> do
+      writeFile
+        "packages.dhall"
+        [i|
+          [
+            { name = "generated package",
+              skip = [] : List Text,
+              install =
+                ''
+                #!/usr/bin/env bash
+                echo foo > #{tempDir}/file
+                ''
+            }
+          ]
+        |]
+      let args = ["--db-file", "db", "--package-file", "packages.dhall"]
+      withArgs args $ run Context.test
+      readFile "file" `shouldReturn` "foo\n"
