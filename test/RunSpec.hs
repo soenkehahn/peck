@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module RunSpec where
 
@@ -20,8 +21,8 @@ import Test.Hspec
 import Test.Mockery.Directory
 import TestUtils
 
-testRun :: PackageConfig -> IO [InstalledPackage]
-testRun config = do
+testRun :: [Package] -> IO [InstalledPackage]
+testRun (PackageConfig -> config) = do
   encodeFile "packages.yaml" config
   let args = ["--db-file", "db", "--package-file", "packages.yaml"]
   withArgs args $ run Context.test
@@ -151,16 +152,18 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
       writeFile
         "packages.dhall"
         [i|
-          [
-            { name = "generated package",
-              skip = [] : List Text,
-              install =
-                ''
-                #!/usr/bin/env bash
-                echo foo > #{tempDir}/file
-                ''
-            }
-          ]
+          {
+            packages = [
+              { name = "generated package",
+                skip = [] : List Text,
+                install =
+                  ''
+                  #!/usr/bin/env bash
+                  echo foo > #{tempDir}/file
+                  '',
+              }
+            ],
+          }
         |]
       let args = ["--db-file", "db", "--package-file", "packages.dhall"]
       withArgs args $ run Context.test

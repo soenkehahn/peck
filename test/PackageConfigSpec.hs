@@ -17,54 +17,62 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
       writeFile "packages.yaml" $
         unindent
           [i|
-            - name: foo
-              install: \|
-                install script
+            packages:
+              - name: foo
+                install: \|
+                  install script
           |]
       readPackageConfig "packages.yaml"
-        `shouldReturn` [ Package
-                           { name = "foo",
-                             skip = [],
-                             install = "install script\n"
-                           }
-                       ]
+        `shouldReturn` PackageConfig
+          [ Package
+              { name = "foo",
+                skip = [],
+                install = "install script\n"
+              }
+          ]
 
     describe "dhall" $ do
       it "allows to use dhall for configuration" $ \_tempDir -> do
         writeFile "packages.dhall" $
           unindent
             [i|
-              [
-                { name = "generated package"
-                , skip = [] : List Text
-                , install = "install script"
-                }
-              ]
+              {
+                packages = [
+                  { name = "generated package",
+                    skip = [] : List Text,
+                    install = "install script",
+                  }
+                ],
+              }
             |]
         readPackageConfig "packages.dhall"
-          `shouldReturn` [ Package
-                             { name = "generated package",
-                               skip = [],
-                               install = "install script"
-                             }
-                         ]
+          `shouldReturn` PackageConfig
+            [ Package
+                { name = "generated package",
+                  skip = [],
+                  install = "install script"
+                }
+            ]
 
       it "allows to omit optional fields, e.g. 'skip'" $ \_tempDir -> do
         writeFile "packages.dhall" $
           unindent
             [i|
               let def = { skip = [] : List Text }
-              in [
-                def // {
-                  name = "generated package",
-                  install = "install script"
-                }
-              ]
+              in {
+                packages = [
+                  def // {
+                    name = "generated package",
+                    install = "install script",
+                  }
+                ],
+              }
             |]
         readPackageConfig "packages.dhall"
-          `shouldReturn` [ Package
-                             { name = "generated package",
-                               skip = [],
-                               install = "install script"
-                             }
-                         ]
+          `shouldReturn` PackageConfig
+            [ Package
+                { name = "generated package",
+                  skip = [],
+                  install = "install script"
+                }
+            ]

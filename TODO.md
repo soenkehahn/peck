@@ -1,4 +1,3 @@
-- make PackageConfig an object for future-proofing
 - implement --dry-run
 - install packages successfully, even if other packages afterwards fail
 - list all files of a package (after installation? during installation?)

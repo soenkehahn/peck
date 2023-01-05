@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module PackageConfig where
 
 import Context
@@ -11,7 +13,16 @@ import Package
 import System.FilePath
 import Prelude hiding (log)
 
-type PackageConfig = [Package]
+newtype PackageConfig = PackageConfig
+  { packages :: [Package]
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromJSON PackageConfig
+
+instance ToJSON PackageConfig
+
+instance FromDhall PackageConfig
 
 readPackageConfig :: FilePath -> IO PackageConfig
 readPackageConfig path = do
@@ -27,10 +38,10 @@ readPackageConfig path = do
       throwIO $ ErrorCall $ "unknown config file extension: " <> extension
 
 applyConfig :: Context -> Db InstalledPackage -> PackageConfig -> IO ()
-applyConfig context db packages = do
+applyConfig context db config = do
   installedPackages <- readDb db
-  let toUninstall = filter (not . (`elem` packages) . package) installedPackages
-      toInstall = filter (not . (`elem` fmap package installedPackages)) packages
+  let toUninstall = filter (not . (`elem` packages config) . package) installedPackages
+      toInstall = filter (not . (`elem` fmap package installedPackages)) $ packages config
   log context $ "uninstalling: " <> unwords (fmap (name . package) toUninstall)
   log context $ "installing: " <> unwords (fmap name toInstall)
   forM_ toUninstall $ \package -> do
