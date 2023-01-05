@@ -7,8 +7,8 @@ import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Package
 
-mkScript :: String -> Package
-mkScript code =
+mkPackage :: String -> Package
+mkPackage code =
   Package
     { name = "test-script",
       skip = [],
@@ -21,6 +21,6 @@ mkScript code =
           |]
     }
 
-skipScript :: [String] -> String -> Package
-skipScript skip code =
-  (mkScript code) {skip}
+mkSkipPackage :: [String] -> String -> Package
+mkSkipPackage skip code =
+  (mkPackage code) {skip}

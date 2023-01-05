@@ -25,17 +25,17 @@ spec = do
   around (inTempDirectory . (getCurrentDirectory >>=)) $ do
     describe "installPackage" $ do
       it "allows to install files" $ \tempDir -> do
-        _ <- installPackage (mkScript [i|echo foo > #{tempDir}/file|])
+        _ <- installPackage (mkPackage [i|echo foo > #{tempDir}/file|])
         readFile "file" `shouldReturn` "foo\n"
 
       it "returns created files" $ \tempDir -> do
-        installedPackage <- installPackage (mkScript [i|echo foo > #{tempDir}/file|])
+        installedPackage <- installPackage (mkPackage [i|echo foo > #{tempDir}/file|])
         files installedPackage `shouldBe` [tempDir </> "file"]
 
       it "returns multiple created files" $ \tempDir -> do
         installedPackage <-
           installPackage $
-            mkScript $
+            mkPackage $
               unindent
                 [i|
                   cd #{tempDir}
@@ -47,7 +47,7 @@ spec = do
       it "returns files in subdirectories" $ \tempDir -> do
         installedPackage <-
           installPackage $
-            mkScript $
+            mkPackage $
               unindent
                 [i|
                   cd #{tempDir}
@@ -57,12 +57,12 @@ spec = do
         files installedPackage `shouldBe` [tempDir </> "foo/bar"]
 
       it "allows to install hidden files" $ \tempDir -> do
-        installedPackage <- installPackage (mkScript [i|touch #{tempDir}/.hidden|])
+        installedPackage <- installPackage (mkPackage [i|touch #{tempDir}/.hidden|])
         files installedPackage `shouldBe` [tempDir </> ".hidden"]
         readFile ".hidden" `shouldReturn` ""
 
       it "runs install script in a temporary build directory" $ \tempDir -> do
-        buildDir <- fmap stripSpaces $ capture_ $ installPackage (mkScript "pwd")
+        buildDir <- fmap stripSpaces $ capture_ $ installPackage (mkPackage "pwd")
         buildDir `shouldSatisfy` ("/tmp/" `isPrefixOf`)
         stripSpaces buildDir `shouldSatisfy` (/= tempDir)
         doesDirectoryExist buildDir `shouldReturn` False
@@ -72,13 +72,13 @@ spec = do
           fmap (first stripSpaces) $
             capture $
               installPackage $
-                mkScript [i|echo foo > file ; pwd|]
+                mkPackage [i|echo foo > file ; pwd|]
         doesFileExist (buildDir </> "file") `shouldReturn` False
         files installedPackage `shouldBe` []
 
       it "doesn't allow packages to modify existing files" $ \tempDir -> do
         touch "pre-existing"
-        let package = mkScript [i|echo foo > #{tempDir}/pre-existing|]
+        let package = mkPackage [i|echo foo > #{tempDir}/pre-existing|]
         installPackage package
           `shouldThrow` ( ==
                             Error
@@ -91,7 +91,7 @@ spec = do
       it "doesn't install any files if some files already exist" $ \tempDir -> do
         touch "b"
         let package =
-              mkScript
+              mkPackage
                 [i|
                     cd #{tempDir}
                     echo foo > a
@@ -111,7 +111,7 @@ spec = do
         it "allows to skip created files from being installed" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [tempDir </> "file"] $
+              mkSkipPackage [tempDir </> "file"] $
                 unindent
                   [i|
                     cd #{tempDir}
@@ -122,7 +122,7 @@ spec = do
         it "allows to skip created directories from being installed" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [tempDir </> "dir"] $
+              mkSkipPackage [tempDir </> "dir"] $
                 unindent
                   [i|
                     cd #{tempDir}
@@ -133,13 +133,13 @@ spec = do
 
         it "allows to specify '~' for the $HOME directory" $ \_tempDir -> do
           home <- getEnv "HOME"
-          _isSkipped (skipScript ["~/file"] "") (home </> "file") `shouldReturn` True
-          _isSkipped (skipScript ["~/dir"] "") (home </> "dir/file") `shouldReturn` True
+          _isSkipped (mkSkipPackage ["~/file"] "") (home </> "file") `shouldReturn` True
+          _isSkipped (mkSkipPackage ["~/dir"] "") (home </> "dir/file") `shouldReturn` True
 
         it "allows to skip multiple patterns" $ \tempDir -> do
           _ <-
             installPackage $
-              skipScript [tempDir </> "a", tempDir </> "b"] $
+              mkSkipPackage [tempDir </> "a", tempDir </> "b"] $
                 unindent
                   [i|
                     cd #{tempDir}
@@ -184,7 +184,7 @@ spec = do
         it "uninstalls unskipped files correctly" $ \tempDir -> do
           installedPackage <-
             installPackage $
-              skipScript [tempDir </> "skipped"] $
+              mkSkipPackage [tempDir </> "skipped"] $
                 unindent
                   [i|
                     cd #{tempDir}

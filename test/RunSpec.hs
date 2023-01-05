@@ -32,19 +32,19 @@ spec :: Spec
 spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
   describe "run" $ do
     it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
-      let package = mkScript [i|echo foo > #{tempDir}/file|]
+      let package = mkPackage [i|echo foo > #{tempDir}/file|]
       _ <- testRun [package]
       readFile "file" `shouldReturn` "foo\n"
 
     it "allows to uninstall packages by removing them from the config" $ \tempDir -> do
-      let package = mkScript [i|echo foo > #{tempDir}/file|]
+      let package = mkPackage [i|echo foo > #{tempDir}/file|]
       _ <- testRun [package]
       doesFileExist "file" `shouldReturn` True
       _ <- testRun []
       doesFileExist "file" `shouldReturn` False
 
     it "doesn't re-install packages that are in the configuration" $ \tempDir -> do
-      let package = mkScript [i|echo $RANDOM > #{tempDir}/file|]
+      let package = mkPackage [i|echo $RANDOM > #{tempDir}/file|]
       _ <- testRun [package]
       Stdout (before :: String) <- cmd "cat" "file"
       _ <- testRun [package]
@@ -53,18 +53,18 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
 
     describe "written InstalledPackages" $ do
       it "returns newly installed packages" $ \tempDir -> do
-        let package = mkScript [i|echo foo > #{tempDir}/file|]
+        let package = mkPackage [i|echo foo > #{tempDir}/file|]
         installed <- testRun [package]
         installed `shouldBe` [InstalledPackage package [tempDir </> "file"]]
 
       it "returns already installed packages" $ \tempDir -> do
-        let package = mkScript [i|touch #{tempDir}/file|]
+        let package = mkPackage [i|touch #{tempDir}/file|]
         [installedPackage] <- testRun [package]
         installedPackages <- testRun [package]
         installedPackages `shouldBe` [installedPackage]
 
       it "doesn't returned uninstalled packages" $ \tempDir -> do
-        let package = mkScript [i|touch #{tempDir}/file|]
+        let package = mkPackage [i|touch #{tempDir}/file|]
         _ <- testRun [package]
         installedPackages <- testRun []
         installedPackages `shouldBe` []
@@ -72,7 +72,7 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
     describe "uninstalling" $ do
       it "removes empty directories during installation" $ \tempDir -> do
         let package =
-              mkScript
+              mkPackage
                 [i|
                     cd #{tempDir}
                     mkdir dir
@@ -84,7 +84,7 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
 
       it "removes empty nested directories during installation" $ \tempDir -> do
         let package =
-              mkScript
+              mkPackage
                 [i|
                     cd #{tempDir}
                     mkdir -p foo/bar
@@ -96,21 +96,21 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
 
       it "also removes pre-existing empty directories" $ \tempDir -> do
         cmd_ "mkdir dir"
-        let package = mkScript [i|touch #{tempDir}/dir/file|]
+        let package = mkPackage [i|touch #{tempDir}/dir/file|]
         _ <- testRun [package]
         _ <- testRun []
         doesDirectoryExist "dir" `shouldReturn` False
 
       it "doesn't remove pre-existing files when uninstallating a package" $ \tempDir -> do
         touch "other-file"
-        let package = mkScript [i|touch #{tempDir}/file|]
+        let package = mkPackage [i|touch #{tempDir}/file|]
         _ <- testRun [package]
         _ <- testRun []
         doesFileExist "other-file" `shouldReturn` True
 
       it "removes installed files set to non-writeable" $ \tempDir -> do
         let package =
-              mkScript $
+              mkPackage $
                 unindent
                   [i|
                       cd #{tempDir}
@@ -124,7 +124,7 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
 
       it "doesn't choke on files created in the temporary build directory" $ \_tempDir -> do
         let package =
-              mkScript $
+              mkPackage $
                 unindent
                   [i|
                       touch file
@@ -135,8 +135,8 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
 
     describe "when subsequent packages fail" $ do
       it "saves successfully installed packages in the db" $ \tempDir -> do
-        let goodPackage = mkScript [i|echo foo > #{tempDir}/file|]
-            failingPackage = mkScript "false"
+        let goodPackage = mkPackage [i|echo foo > #{tempDir}/file|]
+            failingPackage = mkPackage "false"
             config = [goodPackage, failingPackage]
         testRun config `shouldThrow` (\(_ :: SomeException) -> True)
         db :: [InstalledPackage] <- readDb =<< initialize "db"
