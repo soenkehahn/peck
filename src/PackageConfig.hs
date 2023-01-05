@@ -1,13 +1,22 @@
 module PackageConfig where
 
 import Context
+import Control.Exception
 import Control.Monad
 import Data.List
+import Data.Yaml
 import Db
 import Package
 import Prelude hiding (log)
 
 type PackageConfig = [Package]
+
+readPackageConfig :: FilePath -> IO PackageConfig
+readPackageConfig path = do
+  result <- decodeFileEither path
+  case result of
+    Right packages -> return packages
+    Left e -> throwIO $ ErrorCall $ show e
 
 applyConfig :: Context -> Db InstalledPackage -> PackageConfig -> IO ()
 applyConfig context db packages = do
