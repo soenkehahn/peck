@@ -13,7 +13,9 @@ module Peck.Db
 where
 
 import Control.Monad
+import Development.Shake (cmd_)
 import System.Directory
+import System.FilePath
 
 data Db a where
   Db :: (Show a, Read a, Eq a) => FilePath -> Db a
@@ -22,6 +24,7 @@ initialize :: (Show a, Read a, Eq a) => FilePath -> IO (Db a)
 initialize path = do
   exists <- doesFileExist path
   when (not exists) $ do
+    cmd_ "mkdir -p" $ takeDirectory path
     writeFile path "[]"
   return $ Db path
 

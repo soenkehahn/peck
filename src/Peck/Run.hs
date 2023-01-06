@@ -10,11 +10,12 @@ import Peck.Context
 import Peck.Db
 import Peck.Package
 import Peck.PackageConfig
+import System.Directory
+import System.FilePath
 import WithCli
 
 data Args = Args
-  { dbFile :: FilePath,
-    packageFile :: FilePath,
+  { packageFile :: FilePath,
     listFiles :: Bool,
     list :: Bool,
     dryRun :: Bool
@@ -23,9 +24,14 @@ data Args = Args
 
 instance HasArguments Args
 
+getDbFile :: IO FilePath
+getDbFile = do
+  home <- getHomeDirectory
+  return $ home </> ".config" </> "peck" </> "db"
+
 run :: Context -> IO ()
 run context = withCli $ \args -> do
-  db <- initialize (dbFile args)
+  db <- initialize =<< getDbFile
   if list args
     then listPackages db
     else

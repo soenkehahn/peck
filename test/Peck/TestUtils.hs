@@ -3,9 +3,12 @@
 module Peck.TestUtils where
 
 import Control.Concurrent
+import Development.Shake (cmd_)
 import Peck.Context
 import Peck.Package
 import System.Directory
+import System.Environment
+import System.FilePath
 import System.IO.Unsafe
 import Test.Hspec
 import Test.Mockery.Directory
@@ -27,6 +30,8 @@ wrapTests :: SpecWith FilePath -> Spec
 wrapTests =
   around $ \test -> inTempDirectory $ do
     currentDir <- getCurrentDirectory
+    cmd_ "mkdir test-home"
+    setEnv "HOME" (currentDir </> "test-home")
     resetTestLogs
     test currentDir
 

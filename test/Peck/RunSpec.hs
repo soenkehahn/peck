@@ -27,12 +27,13 @@ testRun = testRunWithArgs []
 testRunWithArgs :: [String] -> [Package] -> IO [InstalledPackage]
 testRunWithArgs additionalArgs (PackageConfig -> config) = do
   encodeFile "packages.yaml" config
-  let args =
-        ["--db-file", "db", "--package-file", "packages.yaml"]
-          ++ additionalArgs
+  let args = ["--package-file", "packages.yaml"] ++ additionalArgs
   withArgs args $ run testContext
-  db <- initialize "db"
+  db <- initialize testDbPath
   readDb db
+
+testDbPath :: String
+testDbPath = "test-home/.config/peck/db"
 
 spec :: Spec
 spec = wrapTests $ do
@@ -145,7 +146,7 @@ spec = wrapTests $ do
             failingPackage = mkPackage "false"
             config = [goodPackage, failingPackage]
         testRun config `shouldThrow` (\(_ :: SomeException) -> True)
-        db :: [InstalledPackage] <- readDb =<< initialize "db"
+        db :: [InstalledPackage] <- readDb =<< initialize testDbPath
         db
           `shouldBe` [ InstalledPackage
                          { package = goodPackage,
@@ -170,7 +171,7 @@ spec = wrapTests $ do
             ],
           }
         |]
-      let args = ["--db-file", "db", "--package-file", "packages.dhall"]
+      let args = ["--package-file", "packages.dhall"]
       withArgs args $ run testContext
       readFile "file" `shouldReturn` "foo\n"
 

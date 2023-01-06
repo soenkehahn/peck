@@ -3,7 +3,7 @@ set -eux
 
 systemctl daemon-reload
 apt update
-apt install --yes tree mergerfs
+apt install --yes tree mergerfs libncurses-dev
 
 if ! which just
 then
