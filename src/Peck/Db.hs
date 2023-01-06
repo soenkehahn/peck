@@ -3,7 +3,7 @@
 
 {-# HLINT ignore "Use unless" #-}
 
-module Db
+module Peck.Db
   ( Db,
     initialize,
     readDb,

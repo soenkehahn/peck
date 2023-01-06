@@ -1,13 +1,13 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module PackageConfigSpec where
+module Peck.PackageConfigSpec where
 
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
-import Package
-import PackageConfig
+import Peck.Package
+import Peck.PackageConfig
+import Peck.TestUtils
 import Test.Hspec
-import TestUtils
 
 spec :: Spec
 spec = wrapTests $ do

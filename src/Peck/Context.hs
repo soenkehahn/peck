@@ -1,4 +1,4 @@
-module Context where
+module Peck.Context where
 
 import System.IO
 import Prelude hiding (log)

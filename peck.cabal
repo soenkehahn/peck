@@ -4,21 +4,21 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           packager
+name:           peck
 version:        0.0.0
 build-type:     Simple
 
-executable packager
+executable peck
   main-is: Main.hs
   other-modules:
-      Context
-      Db
-      OverlayFS
-      Package
-      PackageConfig
-      Run
-      Utils
-      Paths_packager
+      Peck.Context
+      Peck.Db
+      Peck.OverlayFS
+      Peck.Package
+      Peck.PackageConfig
+      Peck.Run
+      Peck.Utils
+      Paths_peck
   hs-source-dirs:
       app
       src
@@ -39,20 +39,20 @@ test-suite spec
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      DbSpec
-      OverlayFSSpec
-      PackageConfigSpec
-      PackageSpec
-      RunSpec
-      TestUtils
-      Context
-      Db
-      OverlayFS
-      Package
-      PackageConfig
-      Run
-      Utils
-      Paths_packager
+      Peck.DbSpec
+      Peck.OverlayFSSpec
+      Peck.PackageConfigSpec
+      Peck.PackageSpec
+      Peck.RunSpec
+      Peck.TestUtils
+      Peck.Context
+      Peck.Db
+      Peck.OverlayFS
+      Peck.Package
+      Peck.PackageConfig
+      Peck.Run
+      Peck.Utils
+      Paths_peck
   hs-source-dirs:
       test
       src

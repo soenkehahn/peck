@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module Run where
+module Peck.Run where
 
-import Context
 import Control.Monad
 import Data.Function
 import Data.List
-import Db
-import Package
-import PackageConfig
+import Peck.Context
+import Peck.Db
+import Peck.Package
+import Peck.PackageConfig
 import WithCli
 
 data Args = Args

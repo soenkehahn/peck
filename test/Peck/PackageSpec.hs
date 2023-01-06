@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module PackageSpec where
+module Peck.PackageSpec where
 
 import Data.Bifunctor
 import Data.List
@@ -10,15 +10,15 @@ import Data.String.Conversions
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Data.Yaml
-import Package
+import Peck.Package
+import Peck.TestUtils
+import Peck.Utils
 import System.Directory
 import System.Environment
 import System.FilePath
 import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
-import TestUtils
-import Utils
 
 spec :: Spec
 spec = do

@@ -1,7 +1,7 @@
 module Main where
 
-import Context
-import Run (run)
+import Peck.Context
+import Peck.Run (run)
 
 main :: IO ()
-main = run Context.production
+main = run Peck.Context.production

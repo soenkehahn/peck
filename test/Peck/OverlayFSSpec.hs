@@ -1,11 +1,11 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module OverlayFSSpec where
+module Peck.OverlayFSSpec where
 
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Development.Shake (cmd, unit)
-import OverlayFS
+import Peck.OverlayFS
 import System.Directory
 import System.FilePath ((</>))
 import System.IO.Silently

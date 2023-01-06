@@ -1,4 +1,4 @@
-module Utils where
+module Peck.Utils where
 
 import Control.Exception
 import Control.Monad
@@ -14,7 +14,7 @@ import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir action = do
   systemTempDir <- getCanonicalTemporaryDirectory
-  bracket (createTempDirectory systemTempDir "packager") removeDir action
+  bracket (createTempDirectory systemTempDir "peck") removeDir action
   where
     removeDir dir = do
       unit $ cmd "chmod u+rwX -R" dir

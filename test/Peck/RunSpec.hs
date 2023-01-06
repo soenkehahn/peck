@@ -2,24 +2,24 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module RunSpec where
+module Peck.RunSpec where
 
 import Control.Exception
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Data.Yaml
-import Db
 import Development.Shake (Stdout (..), cmd, cmd_)
-import Package
-import PackageConfig
-import Run
+import Peck.Db
+import Peck.Package
+import Peck.PackageConfig
+import Peck.Run
+import Peck.TestUtils
 import System.Directory
 import System.Environment
 import System.FilePath
 import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
-import TestUtils
 
 testRun :: [Package] -> IO [InstalledPackage]
 testRun = testRunWithArgs []

@@ -1,4 +1,4 @@
-name: packager
+name: peck
 
 ghc-options:
   - -Wall
@@ -30,7 +30,7 @@ tests:
       - -fdefer-typed-holes
 
 executables:
-  packager:
+  peck:
     main: Main.hs
     source-dirs:
       - app

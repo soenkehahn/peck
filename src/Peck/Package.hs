@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Package
+module Peck.Package
   ( Package (..),
     InstalledPackage (..),
     Error (..),
@@ -23,12 +23,12 @@ import Data.Yaml
 import Development.Shake (cmd, unit)
 import Dhall (FromDhall)
 import GHC.Generics (Generic)
-import OverlayFS (Command (..), withMountedImageFile)
+import Peck.OverlayFS (Command (..), withMountedImageFile)
+import Peck.Utils
 import System.Directory
 import System.Environment
 import System.FilePath (splitDirectories, takeDirectory, (</>))
 import System.IO
-import Utils
 import Prelude hiding (log)
 
 data Package = Package

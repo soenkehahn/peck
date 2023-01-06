@@ -1,8 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module DbSpec where
+module Peck.DbSpec where
 
-import Db
+import Peck.Db
 import Test.Hspec
 import Test.Mockery.Directory
 

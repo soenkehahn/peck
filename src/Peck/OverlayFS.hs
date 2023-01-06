@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OverlayFS
+module Peck.OverlayFS
   ( Command (..),
     withMountedImageFile,
   )
@@ -11,9 +11,9 @@ where
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Development.Shake (cmd, unit)
+import Peck.Utils
 import System.Directory
 import System.FilePath
-import Utils
 
 newtype Command = Script FilePath
 

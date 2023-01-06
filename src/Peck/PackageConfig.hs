@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module PackageConfig where
+module Peck.PackageConfig where
 
-import Context
 import Control.Exception
 import Control.Monad
 import Data.List
 import Data.Yaml
-import Db
 import Dhall
-import Package
+import Peck.Context
+import Peck.Db
+import Peck.Package
 import System.FilePath
 import Prelude hiding (log)
 

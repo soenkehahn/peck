@@ -1,10 +1,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module TestUtils where
+module Peck.TestUtils where
 
-import Context
 import Control.Concurrent
-import Package
+import Peck.Context
+import Peck.Package
 import System.Directory
 import System.IO.Unsafe
 import Test.Hspec
