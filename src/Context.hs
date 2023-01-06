@@ -12,9 +12,3 @@ production =
   Context
     { log = hPutStrLn stderr
     }
-
-test :: Context
-test =
-  Context
-    { log = const $ return ()
-    }

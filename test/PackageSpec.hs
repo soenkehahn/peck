@@ -22,7 +22,7 @@ import Utils
 
 spec :: Spec
 spec = do
-  around (inTempDirectory . (getCurrentDirectory >>=)) $ do
+  wrapTests $ do
     describe "installPackage" $ do
       it "allows to install files" $ \tempDir -> do
         _ <- installPackage (mkPackage [i|echo foo > #{tempDir}/file|])

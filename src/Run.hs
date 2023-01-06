@@ -4,6 +4,7 @@
 module Run where
 
 import Context
+import Control.Monad
 import Data.Function
 import Data.List
 import Db
@@ -15,7 +16,8 @@ data Args = Args
   { dbFile :: FilePath,
     packageFile :: FilePath,
     listFiles :: Bool,
-    list :: Bool
+    list :: Bool,
+    dryRun :: Bool
   }
   deriving stock (Show, Generic)
 
@@ -34,7 +36,9 @@ run context = withCli $ \args -> do
 apply :: Context -> Args -> Db InstalledPackage -> IO ()
 apply context args db = do
   packageConfig <- readPackageConfig (packageFile args)
-  applyConfig context db packageConfig
+  if dryRun args
+    then void $ getApplyPlan context db packageConfig
+    else applyConfig context db packageConfig
 
 listPackages :: Db InstalledPackage -> IO ()
 listPackages db = do

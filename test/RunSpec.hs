@@ -4,7 +4,6 @@
 
 module RunSpec where
 
-import Context
 import Control.Exception
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
@@ -23,15 +22,20 @@ import Test.Mockery.Directory
 import TestUtils
 
 testRun :: [Package] -> IO [InstalledPackage]
-testRun (PackageConfig -> config) = do
+testRun = testRunWithArgs []
+
+testRunWithArgs :: [String] -> [Package] -> IO [InstalledPackage]
+testRunWithArgs additionalArgs (PackageConfig -> config) = do
   encodeFile "packages.yaml" config
-  let args = ["--db-file", "db", "--package-file", "packages.yaml"]
-  withArgs args $ run Context.test
+  let args =
+        ["--db-file", "db", "--package-file", "packages.yaml"]
+          ++ additionalArgs
+  withArgs args $ run testContext
   db <- initialize "db"
   readDb db
 
 spec :: Spec
-spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
+spec = wrapTests $ do
   describe "run" $ do
     it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
       let package = mkPackage [i|echo foo > #{tempDir}/file|]
@@ -167,71 +171,119 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
           }
         |]
       let args = ["--db-file", "db", "--package-file", "packages.dhall"]
-      withArgs args $ run Context.test
+      withArgs args $ run testContext
       readFile "file" `shouldReturn` "foo\n"
 
-    it "lists all installed files with --list-files" $ \tempDir -> do
-      let a =
-            ( mkPackage $
-                unindent
-                  [i|
-                  touch #{tempDir}/a
-                  touch #{tempDir}/b
-                |]
-            )
-              { name = "a"
-              }
-          b =
-            ( mkPackage $
-                unindent
-                  [i|
-                  touch #{tempDir}/foo
-                  touch #{tempDir}/bar
-                |]
-            )
-              { name = "b"
-              }
-      _ <- testRun [b, a]
-      let args = ["--db-file", "db", "--package-file", "packages.yaml", "--list-files"]
-      output <- capture_ $ withArgs args $ run Context.test
-      output
-        `shouldBe` unindent
-          [i|
-            a:
-              #{tempDir}/a
-              #{tempDir}/b
-            b:
-              #{tempDir}/bar
-              #{tempDir}/foo
-          |]
+    describe "--list-files" $ do
+      it "lists all installed files" $ \tempDir -> do
+        let a =
+              ( mkPackage $
+                  unindent
+                    [i|
+                      touch #{tempDir}/a
+                      touch #{tempDir}/b
+                    |]
+              )
+                { name = "a"
+                }
+            b =
+              ( mkPackage $
+                  unindent
+                    [i|
+                      touch #{tempDir}/foo
+                      touch #{tempDir}/bar
+                    |]
+              )
+                { name = "b"
+                }
+        _ <- testRun [b, a]
+        output <- capture_ $ testRunWithArgs ["--list-files"] [b, a]
+        output
+          `shouldBe` unindent
+            [i|
+              a:
+                #{tempDir}/a
+                #{tempDir}/b
+              b:
+                #{tempDir}/bar
+                #{tempDir}/foo
+            |]
 
-    it "lists all installed packages with --list" $ \tempDir -> do
-      let a =
-            ( mkPackage $
-                unindent
-                  [i|
-                  touch #{tempDir}/a
-                  touch #{tempDir}/b
-                |]
-            )
-              { name = "a"
-              }
-          b =
-            ( mkPackage $
-                unindent
-                  [i|
-                  touch #{tempDir}/foo
-                  touch #{tempDir}/bar
-                |]
-            )
-              { name = "b"
-              }
-      _ <- testRun [b, a]
-      let args = ["--db-file", "db", "--package-file", "packages.yaml", "--list"]
-      output <- capture_ $ withArgs args $ run Context.test
-      output
-        `shouldBe` unindent
-          [i|
-            a
-            b
-          |]
+    describe "--list" $ do
+      it "lists all installed packages" $ \tempDir -> do
+        let a =
+              ( mkPackage $
+                  unindent
+                    [i|
+                      touch #{tempDir}/a
+                      touch #{tempDir}/b
+                    |]
+              )
+                { name = "a"
+                }
+            b =
+              ( mkPackage $
+                  unindent
+                    [i|
+                      touch #{tempDir}/foo
+                      touch #{tempDir}/bar
+                    |]
+              )
+                { name = "b"
+                }
+        _ <- testRun [b, a]
+        output <- capture_ $ testRunWithArgs ["--list"] [b, a]
+        output
+          `shouldBe` unindent
+            [i|
+              a
+              b
+            |]
+
+    describe "--dry-run" $ do
+      it "does not install packages" $ \tempDir -> do
+        let package = mkPackage $ unindent [i| touch #{tempDir}/file |]
+        _ <- testRunWithArgs ["--dry-run"] [package]
+        doesFileExist "file" `shouldReturn` False
+
+      it "does not uninstall packages" $ \tempDir -> do
+        let package = mkPackage $ unindent [i| touch #{tempDir}/file |]
+        _ <- testRun [package]
+        _ <- testRunWithArgs ["--dry-run"] []
+        readFile "file" `shouldReturn` ""
+
+      it "shows packages to install" $ \tempDir -> do
+        let package = mkPackage $ unindent [i| touch #{tempDir}/file |]
+        _ <- testRunWithArgs ["--dry-run"] [package]
+        output <- readTestLogs
+        output
+          `shouldBe` unindent
+            [i|
+              nothing to uninstall
+              to install:
+                - test package
+            |]
+
+      it "shows packages to uninstall" $ \tempDir -> do
+        let package = mkPackage $ unindent [i| touch #{tempDir}/file |]
+        _ <- testRun [package]
+        resetTestLogs
+        _ <- testRunWithArgs ["--dry-run"] []
+        output <- readTestLogs
+        output
+          `shouldBe` unindent
+            [i|
+              to uninstall:
+                - test package
+              nothing to install
+            |]
+
+      it "shows empty install plan" $ \_ -> do
+        _ <- testRunWithArgs ["--dry-run"] []
+        output <- readTestLogs
+        output
+          `shouldBe` unindent
+            [i|
+              nothing to uninstall
+              nothing to install
+            |]

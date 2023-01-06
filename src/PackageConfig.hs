@@ -39,14 +39,32 @@ readPackageConfig path = do
 
 applyConfig :: Context -> Db InstalledPackage -> PackageConfig -> IO ()
 applyConfig context db config = do
-  installedPackages <- readDb db
-  let toUninstall = filter (not . (`elem` packages config) . package) installedPackages
-      toInstall = filter (not . (`elem` fmap package installedPackages)) $ packages config
-  log context $ "uninstalling: " <> unwords (fmap (name . package) toUninstall)
-  log context $ "installing: " <> unwords (fmap name toInstall)
+  (toUninstall, toInstall) <- getApplyPlan context db config
   forM_ toUninstall $ \package -> do
     uninstall package
     removeElement db package
   forM_ toInstall $ \package -> do
     installPackage package
       >>= addElement db
+
+getApplyPlan ::
+  Context ->
+  Db InstalledPackage ->
+  PackageConfig ->
+  IO ([InstalledPackage], [Package])
+getApplyPlan context db config = do
+  installedPackages <- readDb db
+  let toUninstall = filter (not . (`elem` packages config) . package) installedPackages
+      toInstall = filter (not . (`elem` fmap package installedPackages)) $ packages config
+  logPlan "uninstall" $ fmap package toUninstall
+  logPlan "install" toInstall
+  return (toUninstall, toInstall)
+  where
+    logPlan verb packages = log context $ case packages of
+      [] -> "nothing to " <> verb
+      packages ->
+        intercalate
+          "\n"
+          ( ("to " <> verb <> ":")
+              : fmap (\p -> "  - " <> name p) packages
+          )
