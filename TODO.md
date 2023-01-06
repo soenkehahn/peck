@@ -1,8 +1,5 @@
 - implement --dry-run
-- install packages successfully, even if other packages afterwards fail
-- list all files of a package (after installation? during installation?)
 - provide a --reinstall flag
-- allow to list all installed package names
 - implement a default db file location
 - implement a default packages file location
 - don't use shake

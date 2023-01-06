@@ -17,6 +17,7 @@ import Run
 import System.Directory
 import System.Environment
 import System.FilePath
+import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
 import TestUtils
@@ -168,3 +169,69 @@ spec = around (inTempDirectory . (getCurrentDirectory >>=)) $ do
       let args = ["--db-file", "db", "--package-file", "packages.dhall"]
       withArgs args $ run Context.test
       readFile "file" `shouldReturn` "foo\n"
+
+    it "lists all installed files with --list-files" $ \tempDir -> do
+      let a =
+            ( mkPackage $
+                unindent
+                  [i|
+                  touch #{tempDir}/a
+                  touch #{tempDir}/b
+                |]
+            )
+              { name = "a"
+              }
+          b =
+            ( mkPackage $
+                unindent
+                  [i|
+                  touch #{tempDir}/foo
+                  touch #{tempDir}/bar
+                |]
+            )
+              { name = "b"
+              }
+      _ <- testRun [b, a]
+      let args = ["--db-file", "db", "--package-file", "packages.yaml", "--list-files"]
+      output <- capture_ $ withArgs args $ run Context.test
+      output
+        `shouldBe` unindent
+          [i|
+            a:
+              #{tempDir}/a
+              #{tempDir}/b
+            b:
+              #{tempDir}/bar
+              #{tempDir}/foo
+          |]
+
+    it "lists all installed packages with --list" $ \tempDir -> do
+      let a =
+            ( mkPackage $
+                unindent
+                  [i|
+                  touch #{tempDir}/a
+                  touch #{tempDir}/b
+                |]
+            )
+              { name = "a"
+              }
+          b =
+            ( mkPackage $
+                unindent
+                  [i|
+                  touch #{tempDir}/foo
+                  touch #{tempDir}/bar
+                |]
+            )
+              { name = "b"
+              }
+      _ <- testRun [b, a]
+      let args = ["--db-file", "db", "--package-file", "packages.yaml", "--list"]
+      output <- capture_ $ withArgs args $ run Context.test
+      output
+        `shouldBe` unindent
+          [i|
+            a
+            b
+          |]
