@@ -10,13 +10,12 @@ import Peck.Context
 import Peck.Db
 import Peck.Package
 import Peck.PackageConfig
-import System.Directory
+import Peck.Utils
 import System.FilePath
 import WithCli
 
 data Args = Args
-  { packageFile :: FilePath,
-    listFiles :: Bool,
+  { listFiles :: Bool,
     list :: Bool,
     dryRun :: Bool
   }
@@ -26,8 +25,7 @@ instance HasArguments Args
 
 getDbFile :: IO FilePath
 getDbFile = do
-  home <- getHomeDirectory
-  return $ home </> ".config" </> "peck" </> "db"
+  (</> "db") <$> getPeckConfigDir
 
 run :: Context -> IO ()
 run context = withCli $ \args -> do
@@ -41,7 +39,7 @@ run context = withCli $ \args -> do
 
 apply :: Context -> Args -> Db InstalledPackage -> IO ()
 apply context args db = do
-  packageConfig <- readPackageConfig (packageFile args)
+  packageConfig <- readPackageConfig
   if dryRun args
     then void $ getApplyPlan context db packageConfig
     else applyConfig context db packageConfig

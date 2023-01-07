@@ -37,3 +37,8 @@ stripSpaces = dropWhile isSpace . reverse . dropWhile isSpace . reverse
 
 deb :: Show a => a -> IO ()
 deb = hPrint stderr
+
+getPeckConfigDir :: IO FilePath
+getPeckConfigDir = do
+  home <- getHomeDirectory
+  return $ home </> ".config" </> "peck"

@@ -55,3 +55,12 @@ readTestLogs =
   unlines
     . reverse
     <$> readMVar __testLogs__
+
+peckConfigDir :: String
+peckConfigDir = "test-home/.config/peck"
+
+dbPath :: String
+dbPath = peckConfigDir </> "db"
+
+configPath :: String
+configPath = peckConfigDir </> "packages.yaml"

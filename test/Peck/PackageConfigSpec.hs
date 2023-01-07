@@ -7,13 +7,16 @@ import Data.String.Interpolate.Util
 import Peck.Package
 import Peck.PackageConfig
 import Peck.TestUtils
+import System.FilePath
 import Test.Hspec
+import Test.Mockery.Directory
 
 spec :: Spec
 spec = wrapTests $ do
   describe "readPackageConfig" $ do
     it "reads a package config from a file" $ \_tempDir -> do
-      writeFile "packages.yaml" $
+      touch configPath
+      writeFile configPath $
         unindent
           [i|
             packages:
@@ -21,7 +24,7 @@ spec = wrapTests $ do
                 install: \|
                   install script
           |]
-      readPackageConfig "packages.yaml"
+      readPackageConfig
         `shouldReturn` PackageConfig
           [ Package
               { name = "foo",
@@ -32,7 +35,8 @@ spec = wrapTests $ do
 
     describe "dhall" $ do
       it "allows to use dhall for configuration" $ \_tempDir -> do
-        writeFile "packages.dhall" $
+        touch (configPath -<.> "dhall")
+        writeFile (configPath -<.> "dhall") $
           unindent
             [i|
               {
@@ -44,7 +48,7 @@ spec = wrapTests $ do
                 ],
               }
             |]
-        readPackageConfig "packages.dhall"
+        readPackageConfig
           `shouldReturn` PackageConfig
             [ Package
                 { name = "generated package",
@@ -54,7 +58,8 @@ spec = wrapTests $ do
             ]
 
       it "allows to omit optional fields, e.g. 'skip'" $ \_tempDir -> do
-        writeFile "packages.dhall" $
+        touch (configPath -<.> "dhall")
+        writeFile (configPath -<.> "dhall") $
           unindent
             [i|
               let def = { skip = [] : List Text }
@@ -67,7 +72,7 @@ spec = wrapTests $ do
                 ],
               }
             |]
-        readPackageConfig "packages.dhall"
+        readPackageConfig
           `shouldReturn` PackageConfig
             [ Package
                 { name = "generated package",

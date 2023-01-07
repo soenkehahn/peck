@@ -25,19 +25,35 @@ testRun :: [Package] -> IO [InstalledPackage]
 testRun = testRunWithArgs []
 
 testRunWithArgs :: [String] -> [Package] -> IO [InstalledPackage]
-testRunWithArgs additionalArgs (PackageConfig -> config) = do
-  encodeFile "packages.yaml" config
-  let args = ["--package-file", "packages.yaml"] ++ additionalArgs
+testRunWithArgs args (PackageConfig -> config) = do
+  cmd_ "mkdir -p" $ takeDirectory configPath
+  encodeFile configPath config
   withArgs args $ run testContext
-  db <- initialize testDbPath
+  db <- initialize dbPath
   readDb db
 
-testDbPath :: String
-testDbPath = "test-home/.config/peck/db"
+shouldThrowError :: IO a -> String -> IO ()
+shouldThrowError action error = do
+  result :: Maybe Error <- (action >> return Nothing) `catch` (return . Just)
+  case result of
+    Nothing -> fail "didn't throw"
+    Just (Error got) -> do
+      got `shouldBe` error
 
 spec :: Spec
 spec = wrapTests $ do
   describe "run" $ do
+    it "shows an informative message when no package configuration file exists" $ \_ -> do
+      home <- getHomeDirectory
+      let expected =
+            unindent
+              [i|
+                No peck configuration found.
+                Please, create one at: #{home}/.config/peck/packages.yaml
+                or: #{home}/.config/peck/packages.dhall
+              |]
+      run testContext `shouldThrowError` expected
+
     it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
       let package = mkPackage [i|echo foo > #{tempDir}/file|]
       _ <- testRun [package]
@@ -146,7 +162,7 @@ spec = wrapTests $ do
             failingPackage = mkPackage "false"
             config = [goodPackage, failingPackage]
         testRun config `shouldThrow` (\(_ :: SomeException) -> True)
-        db :: [InstalledPackage] <- readDb =<< initialize testDbPath
+        db :: [InstalledPackage] <- readDb =<< initialize dbPath
         db
           `shouldBe` [ InstalledPackage
                          { package = goodPackage,
@@ -155,8 +171,9 @@ spec = wrapTests $ do
                      ]
 
     it "allows to use dhall for configuration" $ \tempDir -> do
+      cmd_ "mkdir -p" peckConfigDir
       writeFile
-        "packages.dhall"
+        (configPath -<.> "dhall")
         [i|
           {
             packages = [
@@ -171,8 +188,7 @@ spec = wrapTests $ do
             ],
           }
         |]
-      let args = ["--package-file", "packages.dhall"]
-      withArgs args $ run testContext
+      run testContext
       readFile "file" `shouldReturn` "foo\n"
 
     describe "--list-files" $ do

@@ -10,6 +10,8 @@ import Dhall
 import Peck.Context
 import Peck.Db
 import Peck.Package
+import Peck.Utils
+import System.Directory
 import System.FilePath
 import Prelude hiding (log)
 
@@ -24,8 +26,26 @@ instance ToJSON PackageConfig
 
 instance FromDhall PackageConfig
 
-readPackageConfig :: FilePath -> IO PackageConfig
-readPackageConfig path = do
+getPackageFile :: IO FilePath
+getPackageFile = do
+  configDir <- getPeckConfigDir
+  files <- listDirectory configDir
+  let possibleConfigFiles = ["packages.yaml", "packages.dhall"]
+  case filter (`elem` possibleConfigFiles) files of
+    [] -> do
+      throwIO $
+        Error $
+          unlines
+            [ "No peck configuration found.",
+              "Please, create one at: " <> (configDir </> "packages.yaml"),
+              "or: " <> (configDir </> "packages.dhall")
+            ]
+    [file] -> return $ configDir </> file
+    files -> throwIO $ Error $ "multiple config files found: " <> unwords files
+
+readPackageConfig :: IO PackageConfig
+readPackageConfig = do
+  path <- getPackageFile
   case takeExtension path of
     ".yaml" -> do
       result <- decodeFileEither path
