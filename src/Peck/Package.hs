@@ -126,7 +126,7 @@ throwOnFileClash error pair = do
 uninstall :: InstalledPackage -> IO ()
 uninstall package =
   forM_ (files package) $ \file -> do
-    unit $ cmd "rm" file
+    removeFile file
     removeEmptyParents file
 
 removeEmptyParents :: FilePath -> IO ()
