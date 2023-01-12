@@ -67,6 +67,7 @@ newtype Error = Error String
 instance Exception Error
 
 data CopyPair = FilePath :-> FilePath
+  deriving stock (Show, Eq)
 
 infix 4 :->
 
@@ -79,7 +80,7 @@ target (_ :-> b) = b
 copy :: CopyPair -> IO ()
 copy pair = do
   unit $ cmd "mkdir -p" (takeDirectory $ target pair)
-  unit $ cmd "cp" (source pair) (target pair)
+  copyFile (source pair) (target pair)
 
 installPackage :: Package -> IO InstalledPackage
 installPackage package = do

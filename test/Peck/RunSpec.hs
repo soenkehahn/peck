@@ -74,6 +74,11 @@ spec = wrapTests $ do
       Stdout after <- cmd "cat" "file"
       after `shouldBe` before
 
+    it "allows to install files with spaces" $ \tempDir -> do
+      let package = mkPackage [i|echo foo > '#{tempDir}/file with spaces'|]
+      _ <- testRun [package]
+      readFile "file with spaces" `shouldReturn` "foo\n"
+
     describe "written InstalledPackages" $ do
       it "returns newly installed packages" $ \tempDir -> do
         let package = mkPackage [i|echo foo > #{tempDir}/file|]
