@@ -1,4 +1,4 @@
-- implement better output on errors (without leaking implementation details like stack traces and YamlException strings)
+- implement --config-dir flag
 - provide a --reinstall flag
 - implement a --init that creates a simple example config
 - don't use shake

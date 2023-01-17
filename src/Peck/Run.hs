@@ -8,9 +8,11 @@ import Data.Function
 import Data.List
 import Peck.Context
 import Peck.Db
+import Peck.Error
 import Peck.Package
 import Peck.PackageConfig
 import Peck.Utils
+import System.Exit
 import System.FilePath
 import WithCli
 
@@ -27,15 +29,17 @@ getDbFile :: IO FilePath
 getDbFile = do
   (</> "db") <$> getPeckConfigDir
 
-run :: Context -> IO ()
-run context = withCli $ \args -> do
-  db <- initialize =<< getDbFile
-  if list args
-    then listPackages db
-    else
-      if listFiles args
-        then listPackagesWithFiles db
-        else apply context args db
+run :: Context -> IO ExitCode
+run context =
+  handleErrors $ do
+    withCli $ \args -> do
+      db <- initialize =<< getDbFile
+      if list args
+        then listPackages db
+        else
+          if listFiles args
+            then listPackagesWithFiles db
+            else apply context args db
 
 apply :: Context -> Args -> Db InstalledPackage -> IO ()
 apply context args db = do

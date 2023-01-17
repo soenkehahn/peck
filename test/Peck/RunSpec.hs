@@ -1,22 +1,21 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Peck.RunSpec where
 
-import Control.Exception
+import Data.List
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
-import Data.Yaml
 import Development.Shake (Stdout (..), cmd, cmd_)
 import Peck.Db
 import Peck.Package
-import Peck.PackageConfig
 import Peck.Run
 import Peck.TestUtils
 import System.Directory
 import System.Environment
+import System.Exit
 import System.FilePath
+import System.IO
 import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
@@ -25,35 +24,19 @@ testRun :: [Package] -> IO [InstalledPackage]
 testRun = testRunWithArgs []
 
 testRunWithArgs :: [String] -> [Package] -> IO [InstalledPackage]
-testRunWithArgs args (PackageConfig -> config) = do
-  cmd_ "mkdir -p" $ takeDirectory configPath
-  encodeFile configPath config
-  withArgs args $ run testContext
-  db <- initialize dbPath
-  readDb db
-
-shouldThrowError :: IO a -> String -> IO ()
-shouldThrowError action error = do
-  result :: Maybe Error <- (action >> return Nothing) `catch` (return . Just)
-  case result of
-    Nothing -> fail "didn't throw"
-    Just (Error got) -> do
-      got `shouldBe` error
+testRunWithArgs args config = do
+  writeConfig config
+  exitCode <- withArgs args $ run testContext
+  case exitCode of
+    ExitFailure _ -> do
+      error $ show exitCode
+    ExitSuccess -> do
+      db <- initialize dbPath
+      readDb db
 
 spec :: Spec
 spec = wrapTests $ do
   describe "run" $ do
-    it "shows an informative message when no package configuration file exists" $ \_ -> do
-      home <- getHomeDirectory
-      let expected =
-            unindent
-              [i|
-                No peck configuration found.
-                Please, create one at: #{home}/.config/peck/packages.yaml
-                or: #{home}/.config/peck/packages.dhall
-              |]
-      run testContext `shouldThrowError` expected
-
     it "installs packages that aren't installed, but in the configuration" $ \tempDir -> do
       let package = mkPackage [i|echo foo > #{tempDir}/file|]
       _ <- testRun [package]
@@ -146,6 +129,85 @@ spec = wrapTests $ do
         pathIsSymbolicLink "link" `shouldReturn` True
         getSymbolicLinkTarget "link" `shouldReturn` (tempDir </> "file")
 
+    describe "on errors" $ do
+      it "shows an informative message when no package configuration file exists" $ \_ -> do
+        output <- hCapture_ [stderr] $ run testContext
+        home <- getHomeDirectory
+        let expected =
+              unindent
+                [i|
+                  No peck configuration found.
+                  Please, create one at: #{home}/.config/peck/packages.yaml
+                  or: #{home}/.config/peck/packages.dhall
+                |]
+        output `shouldBe` expected
+
+      it "doesn't write anything to stdout" $ \_ -> do
+        output <- capture_ $ hSilence [stderr] $ run testContext
+        output `shouldBe` ""
+
+      it "yields a non-zero exit-code" $ \_ -> do
+        exitCode <- hSilence [stderr] $ run testContext
+        exitCode `shouldBe` ExitFailure 1
+
+      it "prints out yaml errors nicely" $ \_ -> do
+        cmd_ "mkdir -p" $ takeDirectory configPath
+        writeFile configPath "invalid_yaml: ["
+        output <- hCapture_ [stderr] $ run testContext
+        configPath <- makeAbsolute configPath
+        let expected =
+              unindent
+                [i|
+                  Error reading #{configPath}:
+                  YAML parse exception at line 1, column 0,
+                  while parsing a flow node:
+                  did not find expected node content
+                |]
+        output `shouldBe` expected
+
+      it "prints out dhall errors nicely" $ \_ -> do
+        cmd_ "mkdir -p" $ takeDirectory configPath
+        writeFile (configPath -<.> "dhall") "{ invalid_dhall = [ }"
+        output <- hCapture_ [stderr] $ run testContext
+        configPath <- makeAbsolute (configPath -<.> "dhall")
+        let expected =
+              unindent
+                [i|
+
+                  \ESC[1;31mError\ESC[0m: Invalid input
+
+                  #{configPath}:1:21:
+                    |
+                  1 | { invalid_dhall = [ }
+                    |                     ^
+                  unexpected '}'
+                  expecting ',', ], expression, or whitespace
+
+                |]
+        output `shouldBe` expected
+
+      it "prints out install script errors nicely" $ \_ -> do
+        let package = mkPackage [i| does-not-exist |]
+        writeConfig [package]
+        output <- hCapture_ [stderr] $ run testContext
+        let scriptError =
+              "/install.sh: line 3: does-not-exist: command not found\n"
+        output `shouldSatisfy` (scriptError `isInfixOf`)
+        let peckError = "PECK ERROR: Install script for package 'test package' failed, see errors above."
+        drop 1 (lines output) `shouldBe` [peckError]
+
+      it "returns a non-zero exit code on install script errors" $ \_ -> do
+        let package = mkPackage [i| false |]
+        writeConfig [package]
+        exitCode <- hSilence [stderr] $ run testContext
+        exitCode `shouldBe` ExitFailure 1
+
+      it "relays non-zero exit codes from install scripts" $ \_ -> do
+        let package = mkPackage [i| exit 42 |]
+        writeConfig [package]
+        exitCode <- hSilence [stderr] $ run testContext
+        exitCode `shouldBe` ExitFailure 42
+
     describe "written InstalledPackages" $ do
       it "returns newly installed packages" $ \tempDir -> do
         let package = mkPackage [i|echo foo > #{tempDir}/file|]
@@ -233,7 +295,8 @@ spec = wrapTests $ do
         let goodPackage = mkPackage [i|echo foo > #{tempDir}/file|]
             failingPackage = mkPackage "false"
             config = [goodPackage, failingPackage]
-        testRun config `shouldThrow` (\(_ :: SomeException) -> True)
+        writeConfig config
+        ExitFailure 1 <- hSilence [stderr] $ run testContext
         db :: [InstalledPackage] <- readDb =<< initialize dbPath
         db
           `shouldBe` [ InstalledPackage
@@ -260,7 +323,7 @@ spec = wrapTests $ do
             ],
           }
         |]
-      run testContext
+      ExitSuccess <- run testContext
       readFile "file" `shouldReturn` "foo\n"
 
     describe "--list-files" $ do

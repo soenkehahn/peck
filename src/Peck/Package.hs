@@ -10,7 +10,6 @@
 module Peck.Package
   ( Package (..),
     InstalledPackage (..),
-    Error (..),
     installPackage,
     uninstall,
     _isSkipped,
@@ -26,6 +25,7 @@ import Data.Yaml
 import Development.Shake (cmd_)
 import Dhall (FromDhall)
 import GHC.Generics (Generic)
+import Peck.Error
 import Peck.OverlayFS (Command (..), withMountedImageFile)
 import Peck.Utils
 import System.Directory
@@ -65,11 +65,6 @@ data InstalledPackage = InstalledPackage
   }
   deriving stock (Show, Read, Eq)
 
-newtype Error = Error String
-  deriving stock (Show, Eq)
-
-instance Exception Error
-
 data CopyPair = FilePath :-> FilePath
   deriving stock (Show, Eq)
 
@@ -100,12 +95,22 @@ installPackage package = do
     withTempDir $ \buildDir -> do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do
-          files <- listFilesFromOverlay buildDir package overlay
-          forM_ files $ throwOnFileClash "file already exists"
-          forM files $ \pair -> do
-            throwOnFileClash "PANIC: while installing package, found existing file" pair
-            copy pair
-            return $ target pair
+          case overlay of
+            Left exitCode ->
+              throwIO $
+                PeckError
+                  (Just exitCode)
+                  ( "PECK ERROR: Install script for package '"
+                      <> name package
+                      <> "' failed, see errors above."
+                  )
+            Right overlay -> do
+              files <- listFilesFromOverlay buildDir package overlay
+              forM_ files $ throwOnFileClash "file already exists"
+              forM files $ \pair -> do
+                throwOnFileClash "PANIC: while installing package, found existing file" pair
+                copy pair
+                return $ target pair
         return $ InstalledPackage package files
 
 listFilesFromOverlay :: FilePath -> Package -> FilePath -> IO [CopyPair]
@@ -131,7 +136,7 @@ throwOnFileClash :: String -> CopyPair -> IO ()
 throwOnFileClash error pair = do
   exists <- doesFileExist $ target pair
   when exists $ do
-    throwIO $ Error $ error <> ": " <> target pair
+    throwIO $ peckError $ error <> ": " <> target pair
 
 uninstall :: InstalledPackage -> IO ()
 uninstall package =

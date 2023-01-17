@@ -13,17 +13,18 @@ import Data.String.Interpolate.Util
 import Development.Shake (cmd, unit)
 import Peck.Utils
 import System.Directory
+import System.Exit
 import System.FilePath
 
 newtype Command = Script FilePath
 
-withMountedImageFile :: Command -> (FilePath -> IO a) -> IO a
+withMountedImageFile :: Command -> (Either ExitCode FilePath -> IO a) -> IO a
 withMountedImageFile command action = do
   withTempDir $ \tempDir -> do
     upper <- performInOverlayFS tempDir command
     action upper
 
-performInOverlayFS :: FilePath -> Command -> IO FilePath
+performInOverlayFS :: FilePath -> Command -> IO (Either ExitCode FilePath)
 performInOverlayFS tempDir (Script path) = do
   workingDir <- getCurrentDirectory
   path <- makeAbsolute path
@@ -51,8 +52,10 @@ performInOverlayFS tempDir (Script path) = do
           unshare -Umr --root #{tempDir}/overlay --wd #{workingDir} #{path}
         |]
   outerScript <- writeScript tempDir "outer.sh" ("unshare -Umr " <> innerScript)
-  unit $ cmd outerScript
-  return $ tempDir </> "upper"
+  exitCode <- cmd outerScript
+  return $ case exitCode of
+    ExitFailure _ -> Left exitCode
+    ExitSuccess -> Right $ tempDir </> "upper"
 
 writeScript :: FilePath -> FilePath -> String -> IO FilePath
 writeScript dir path code = do

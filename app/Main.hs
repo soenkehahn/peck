@@ -2,6 +2,8 @@ module Main where
 
 import Peck.Context
 import Peck.Run (run)
+import System.Exit
 
 main :: IO ()
-main = run Peck.Context.production
+main =
+  exitWith =<< run Peck.Context.production

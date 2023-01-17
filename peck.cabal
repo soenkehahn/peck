@@ -13,6 +13,7 @@ executable peck
   other-modules:
       Peck.Context
       Peck.Db
+      Peck.Error
       Peck.OverlayFS
       Peck.Package
       Peck.PackageConfig
@@ -48,6 +49,7 @@ test-suite spec
       Peck.TestUtils
       Peck.Context
       Peck.Db
+      Peck.Error
       Peck.OverlayFS
       Peck.Package
       Peck.PackageConfig

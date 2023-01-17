@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Peck.PackageConfig where
 
@@ -9,6 +10,7 @@ import Data.Yaml
 import Dhall
 import Peck.Context
 import Peck.Db
+import Peck.Error
 import Peck.Package
 import Peck.Utils
 import System.Directory
@@ -34,14 +36,15 @@ getPackageFile = do
   case filter (`elem` possibleConfigFiles) files of
     [] -> do
       throwIO $
-        Error $
-          unlines
+        peckError $
+          intercalate
+            "\n"
             [ "No peck configuration found.",
               "Please, create one at: " <> (configDir </> "packages.yaml"),
               "or: " <> (configDir </> "packages.dhall")
             ]
     [file] -> return $ configDir </> file
-    files -> throwIO $ Error $ "multiple config files found: " <> unwords files
+    files -> throwIO $ peckError $ "multiple config files found: " <> unwords files
 
 readPackageConfig :: IO PackageConfig
 readPackageConfig = do
@@ -51,11 +54,16 @@ readPackageConfig = do
       result <- decodeFileEither path
       case result of
         Right packages -> return packages
-        Left e -> throwIO $ ErrorCall $ show e
+        Left e ->
+          throwIO $
+            peckError $
+              ("Error reading " <> path <> ":\n")
+                <> prettyPrintParseException e
     ".dhall" -> do
-      inputFile auto path
+      catch (inputFile auto path) $ \(e :: SomeException) -> do
+        throwIO $ peckError $ show e
     extension -> do
-      throwIO $ ErrorCall $ "unknown config file extension: " <> extension
+      throwIO $ peckError $ "unknown config file extension: " <> extension
 
 applyConfig :: Context -> Db InstalledPackage -> PackageConfig -> IO ()
 applyConfig context db config = do

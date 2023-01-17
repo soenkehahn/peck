@@ -7,7 +7,9 @@ import Data.String.Interpolate.Util
 import Development.Shake (cmd, unit)
 import Peck.OverlayFS
 import System.Directory
+import System.Exit
 import System.FilePath ((</>))
+import System.IO
 import System.IO.Silently
 import Test.Hspec
 import Test.Mockery.Directory
@@ -78,14 +80,14 @@ spec =
       describe "looking at the overlaid layer" $ do
         it "allows reading created files" $ do
           script <- writeScript "echo foo > file"
-          withMountedImageFile (Script script) $ \dir -> do
+          withMountedImageFile (Script script) $ \(Right dir) -> do
             workingDir <- getCurrentDirectory
             readFile (dir <> workingDir </> "file") `shouldReturn` "foo\n"
 
         it "allows reading modified files" $ do
           writeFile "pre-existing" "foo"
           script <- writeScript "echo bar > pre-existing"
-          withMountedImageFile (Script script) $ \dir -> do
+          withMountedImageFile (Script script) $ \(Right dir) -> do
             workingDir <- getCurrentDirectory
             readFile (workingDir </> "pre-existing") `shouldReturn` "foo"
             readFile (dir <> workingDir </> "pre-existing") `shouldReturn` "bar\n"
@@ -93,12 +95,21 @@ spec =
         it "doesn't contain non-modified existing files" $ do
           writeFile "pre-existing" "foo"
           script <- writeScript "echo bar > other-file"
-          withMountedImageFile (Script script) $ \dir -> do
+          withMountedImageFile (Script script) $ \(Right dir) -> do
             workingDir <- getCurrentDirectory
             doesFileExist (dir <> workingDir </> "pre-existing") `shouldReturn` False
 
         it "removes the overlaid layer at the end" $ do
           script <- writeScript "true"
-          overlaidDir <- withMountedImageFile (Script script) $ \dir -> do
+          overlaidDir <- withMountedImageFile (Script script) $ \(Right dir) -> do
             return dir
           doesDirectoryExist overlaidDir `shouldReturn` False
+
+        it "provides an error with exit code when the script execution failed" $ do
+          script <- writeScript "exit 42"
+          hSilence [stderr] $
+            withMountedImageFile (Script script) $ \result -> do
+              case result of
+                Left exitCode -> do
+                  exitCode `shouldBe` ExitFailure 42
+                x -> error $ show x

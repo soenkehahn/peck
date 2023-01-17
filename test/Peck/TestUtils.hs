@@ -3,9 +3,11 @@
 module Peck.TestUtils where
 
 import Control.Concurrent
+import Data.Yaml
 import Development.Shake (cmd_)
 import Peck.Context
 import Peck.Package
+import Peck.PackageConfig
 import System.Directory
 import System.Environment
 import System.FilePath
@@ -64,3 +66,8 @@ dbPath = peckConfigDir </> "db"
 
 configPath :: String
 configPath = peckConfigDir </> "packages.yaml"
+
+writeConfig :: [Package] -> IO ()
+writeConfig config = do
+  cmd_ "mkdir -p" $ takeDirectory configPath
+  encodeFile configPath $ PackageConfig config

@@ -10,6 +10,7 @@ import Data.String.Conversions
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Data.Yaml
+import Peck.Error
 import Peck.Package
 import Peck.TestUtils
 import Peck.Utils
@@ -81,7 +82,7 @@ spec = do
         let package = mkPackage [i|echo foo > #{tempDir}/pre-existing|]
         installPackage package
           `shouldThrow` ( ==
-                            Error
+                            peckError
                               ( "file already exists: "
                                   <> tempDir
                                   </> "pre-existing"
@@ -99,7 +100,7 @@ spec = do
                   |]
         installPackage package
           `shouldThrow` ( ==
-                            Error
+                            peckError
                               ( "file already exists: "
                                   <> tempDir
                                   </> "b"
