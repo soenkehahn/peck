@@ -3,6 +3,9 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use unless" #-}
 
 module Peck.Package
   ( Package (..),
@@ -20,7 +23,7 @@ import Control.Monad
 import Data.List
 import Data.String
 import Data.Yaml
-import Development.Shake (cmd, unit)
+import Development.Shake (cmd_)
 import Dhall (FromDhall)
 import GHC.Generics (Generic)
 import Peck.OverlayFS (Command (..), withMountedImageFile)
@@ -29,6 +32,7 @@ import System.Directory
 import System.Environment
 import System.FilePath (splitDirectories, takeDirectory, (</>))
 import System.IO
+import System.Posix.Files
 import Prelude hiding (log)
 
 data Package = Package
@@ -79,14 +83,20 @@ target (_ :-> b) = b
 
 copy :: CopyPair -> IO ()
 copy pair = do
-  unit $ cmd "mkdir -p" (takeDirectory $ target pair)
-  copyFile (source pair) (target pair)
+  cmd_ "mkdir -p" (takeDirectory $ target pair)
+  symLink <- pathIsSymbolicLink (source pair)
+  if symLink
+    then do
+      linkTarget <- getSymbolicLinkTarget (source pair)
+      createFileLink linkTarget (target pair)
+    else do
+      copyFile (source pair) (target pair)
 
 installPackage :: Package -> IO InstalledPackage
 installPackage package = do
   withTempDir $ \((</> "install.sh") -> installScript) -> do
     writeFile installScript $ install package
-    unit $ cmd "chmod +x" installScript
+    cmd_ "chmod +x" installScript
     withTempDir $ \buildDir -> do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do
@@ -126,13 +136,21 @@ throwOnFileClash error pair = do
 uninstall :: InstalledPackage -> IO ()
 uninstall package =
   forM_ (files package) $ \file -> do
+    addWritePermission file
     removeFile file
     removeEmptyParents file
+
+addWritePermission :: FilePath -> IO ()
+addWritePermission path = do
+  isSymLink <- pathIsSymbolicLink path
+  when (not isSymLink) $ do
+    mode <- fileMode <$> getFileStatus path
+    setFileMode path $ mode `unionFileModes` ownerWriteMode
 
 removeEmptyParents :: FilePath -> IO ()
 removeEmptyParents path = do
   let parent = takeDirectory path
   files <- readFiles parent
   when (null files) $ do
-    unit $ cmd "rm -rf" parent
+    cmd_ "rm -rf" parent
     removeEmptyParents parent

@@ -13,6 +13,7 @@ dependencies:
   - interpolate
   - shake
   - temporary
+  - unix
   - yaml
 
 tests:

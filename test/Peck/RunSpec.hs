@@ -74,7 +74,7 @@ spec = wrapTests $ do
       Stdout after <- cmd "cat" "file"
       after `shouldBe` before
 
-    describe "installed files with spaces" $ do
+    describe "spaces in filepaths" $ do
       it "installs files with spaces" $ \tempDir -> do
         let package = mkPackage [i|echo foo > '#{tempDir}/file with spaces'|]
         _ <- testRun [package]
@@ -85,6 +85,43 @@ spec = wrapTests $ do
         _ <- testRun [package]
         _ <- testRun []
         doesFileExist "file with spaces" `shouldReturn` False
+
+    describe "symlinks" $ do
+      it "installs relative symlinks" $ \tempDir -> do
+        let package =
+              mkPackage
+                [i|
+                  cd '#{tempDir}'
+                  echo foo > file
+                  ln -s ./file link
+                |]
+        _ <- testRun [package]
+        pathIsSymbolicLink "link" `shouldReturn` True
+        getSymbolicLinkTarget "link" `shouldReturn` "./file"
+
+      it "uninstalls symlinks" $ \tempDir -> do
+        let package =
+              mkPackage
+                [i|
+                  cd '#{tempDir}'
+                  echo foo > file
+                  ln -s ./file link
+                |]
+        _ <- testRun [package]
+        _ <- testRun []
+        doesFileExist "link" `shouldReturn` False
+
+      it "installs absolute symlinks correctly" $ \tempDir -> do
+        let package =
+              mkPackage
+                [i|
+                  cd '#{tempDir}'
+                  echo foo > file
+                  ln -s #{tempDir}/file link
+                |]
+        _ <- testRun [package]
+        pathIsSymbolicLink "link" `shouldReturn` True
+        getSymbolicLinkTarget "link" `shouldReturn` (tempDir </> "file")
 
     describe "written InstalledPackages" $ do
       it "returns newly installed packages" $ \tempDir -> do

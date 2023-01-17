@@ -1,4 +1,3 @@
-- copy symlinks correctly
 - implement better output on errors (without leaking implementation details like stack traces and YamlException strings)
 - provide a --reinstall flag
 - implement a --init that creates a simple example config
