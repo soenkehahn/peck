@@ -83,7 +83,7 @@ target (_ :-> b) = b
 
 copy :: CopyPair -> IO ()
 copy pair = do
-  cmd_ "mkdir -p" (takeDirectory $ target pair)
+  createDirectoryIfMissing True (takeDirectory $ target pair)
   symLink <- pathIsSymbolicLink (source pair)
   if symLink
     then do
@@ -152,5 +152,5 @@ removeEmptyParents path = do
   let parent = takeDirectory path
   files <- readFiles parent
   when (null files) $ do
-    cmd_ "rm -rf" parent
+    removeDirectory parent
     removeEmptyParents parent

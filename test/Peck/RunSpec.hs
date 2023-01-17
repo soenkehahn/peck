@@ -86,6 +86,29 @@ spec = wrapTests $ do
         _ <- testRun []
         doesFileExist "file with spaces" `shouldReturn` False
 
+      it "installs files in directories with spaces" $ \tempDir -> do
+        let package =
+              mkPackage
+                [i|
+                  mkdir '#{tempDir}/dir with spaces'
+                  echo foo > '#{tempDir}/dir with spaces/file'
+                |]
+        _ <- testRun [package]
+        readFile "dir with spaces/file" `shouldReturn` "foo\n"
+
+      it "uninstalls files in directories with spaces" $ \tempDir -> do
+        let package =
+              mkPackage
+                [i|
+                  mkdir '#{tempDir}/dir with spaces'
+                  echo foo > '#{tempDir}/dir with spaces/file'
+                |]
+        _ <- testRun [package]
+        _ <- testRun []
+        fileExists <- doesFileExist "dir with spaces/file"
+        dirExists <- doesDirectoryExist "dir with spaces"
+        (fileExists, dirExists) `shouldBe` (False, False)
+
     describe "symlinks" $ do
       it "installs relative symlinks" $ \tempDir -> do
         let package =
