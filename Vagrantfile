@@ -18,6 +18,7 @@ fi
 stack --version
 
 cd /vagrant
+su vagrant -c "touch ~/.hushlogin"
 su vagrant -c "stack install ghcid"
 su vagrant -c "stack build --only-dependencies --test"
 SCRIPT

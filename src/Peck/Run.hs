@@ -1,11 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
-
 module Peck.Run where
 
 import Control.Monad
 import Data.Function
 import Data.List
+import Peck.CliArgs
 import Peck.Context
 import Peck.Db
 import Peck.Error
@@ -16,24 +14,15 @@ import System.Exit
 import System.FilePath
 import WithCli
 
-data Args = Args
-  { listFiles :: Bool,
-    list :: Bool,
-    dryRun :: Bool
-  }
-  deriving stock (Show, Generic)
-
-instance HasArguments Args
-
-getDbFile :: IO FilePath
-getDbFile = do
-  (</> "db") <$> getPeckConfigDir
+getDbFile :: CliArgs -> IO FilePath
+getDbFile args = do
+  (</> "db") <$> getPeckConfigDir args
 
 run :: Context -> IO ExitCode
 run context =
   handleErrors $ do
     withCli $ \args -> do
-      db <- initialize =<< getDbFile
+      db <- initialize =<< getDbFile args
       if list args
         then listPackages db
         else
@@ -41,9 +30,9 @@ run context =
             then listPackagesWithFiles db
             else apply context args db
 
-apply :: Context -> Args -> Db InstalledPackage -> IO ()
+apply :: Context -> CliArgs -> Db InstalledPackage -> IO ()
 apply context args db = do
-  packageConfig <- readPackageConfig
+  packageConfig <- readPackageConfig args
   if dryRun args
     then void $ getApplyPlan context db packageConfig
     else applyConfig context db packageConfig

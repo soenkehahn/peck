@@ -5,6 +5,7 @@ import Control.Monad
 import Data.Char (isSpace)
 import Data.List
 import Development.Shake (cmd, unit)
+import Peck.CliArgs (CliArgs (configDir))
 import System.Directory
 import System.FilePath
 import System.IO
@@ -38,7 +39,9 @@ stripSpaces = dropWhile isSpace . reverse . dropWhile isSpace . reverse
 deb :: Show a => a -> IO ()
 deb = hPrint stderr
 
-getPeckConfigDir :: IO FilePath
-getPeckConfigDir = do
-  home <- getHomeDirectory
-  return $ home </> ".config" </> "peck"
+getPeckConfigDir :: CliArgs -> IO FilePath
+getPeckConfigDir args = case configDir args of
+  Just configDir -> return configDir
+  Nothing -> do
+    home <- getHomeDirectory
+    return $ home </> ".config" </> "peck"

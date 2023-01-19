@@ -2,6 +2,7 @@
 
 module Peck.PackageConfigSpec where
 
+import Data.Default
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Peck.Package
@@ -24,7 +25,7 @@ spec = wrapTests $ do
                 install: \|
                   install script
           |]
-      readPackageConfig
+      readPackageConfig def
         `shouldReturn` PackageConfig
           [ Package
               { name = "foo",
@@ -48,7 +49,7 @@ spec = wrapTests $ do
                 ],
               }
             |]
-        readPackageConfig
+        readPackageConfig def
           `shouldReturn` PackageConfig
             [ Package
                 { name = "generated package",
@@ -72,7 +73,7 @@ spec = wrapTests $ do
                 ],
               }
             |]
-        readPackageConfig
+        readPackageConfig def
           `shouldReturn` PackageConfig
             [ Package
                 { name = "generated package",

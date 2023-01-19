@@ -8,6 +8,7 @@ import Control.Monad
 import Data.List
 import Data.Yaml
 import Dhall
+import Peck.CliArgs
 import Peck.Context
 import Peck.Db
 import Peck.Error
@@ -28,9 +29,9 @@ instance ToJSON PackageConfig
 
 instance FromDhall PackageConfig
 
-getPackageFile :: IO FilePath
-getPackageFile = do
-  configDir <- getPeckConfigDir
+getPackageFile :: CliArgs -> IO FilePath
+getPackageFile args = do
+  configDir <- getPeckConfigDir args
   files <- listDirectory configDir
   let possibleConfigFiles = ["packages.yaml", "packages.dhall"]
   case filter (`elem` possibleConfigFiles) files of
@@ -46,9 +47,9 @@ getPackageFile = do
     [file] -> return $ configDir </> file
     files -> throwIO $ peckError $ "multiple config files found: " <> unwords files
 
-readPackageConfig :: IO PackageConfig
-readPackageConfig = do
-  path <- getPackageFile
+readPackageConfig :: CliArgs -> IO PackageConfig
+readPackageConfig args = do
+  path <- getPackageFile args
   case takeExtension path of
     ".yaml" -> do
       result <- decodeFileEither path

@@ -6,9 +6,11 @@ module Peck.RunSpec where
 import Data.List
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
+import Data.Yaml
 import Development.Shake (Stdout (..), cmd, cmd_)
 import Peck.Db
 import Peck.Package
+import Peck.PackageConfig
 import Peck.Run
 import Peck.TestUtils
 import System.Directory
@@ -439,3 +441,30 @@ spec = wrapTests $ do
               nothing to uninstall
               nothing to install
             |]
+
+    describe "--config-dir" $ do
+      it "overwrites the default config dir" $ \tempDir -> do
+        let package =
+              mkPackage $
+                unindent
+                  [i|
+                    mkdir -p #{tempDir}/installDir
+                    touch #{tempDir}/installDir/file
+                  |]
+        cmd_ "mkdir -p" "custom"
+        encodeFile "custom/packages.yaml" $ PackageConfig [package]
+        ExitSuccess <- withArgs ["--config-dir", "custom"] $ run testContext
+        sort <$> listDirectory "installDir" `shouldReturn` ["file"]
+
+      it "uses the database file from the custom config dir" $ \_ -> do
+        let package = mkPackage ""
+        cmd_ "mkdir -p" "custom"
+        encodeFile "custom/packages.yaml" $ PackageConfig [package]
+        ExitSuccess <-
+          withArgs ["--config-dir", "custom"] $
+            run testContext
+        sort <$> listDirectory "custom" `shouldReturn` ["db", "packages.yaml"]
+        resetTestLogs
+        ExitSuccess <- withArgs ["--config-dir", "custom"] $ run testContext
+        lines <$> readTestLogs
+          `shouldReturn` ["nothing to uninstall", "nothing to install"]
