@@ -1,20 +1,20 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use list literal" #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Peck.CliArgs where
 
 import Data.Default
+import Data.String.Interpolate
+import Data.String.Interpolate.Util
 import WithCli
 
 data CliArgs = CliArgs
-  { listFiles :: Bool,
+  { dryRun :: Bool,
+    configDir :: Maybe FilePath,
     list :: Bool,
-    dryRun :: Bool,
-    configDir :: Maybe FilePath
+    listFiles :: Bool
   }
   deriving stock (Show, Generic)
 
@@ -24,8 +24,48 @@ instance Default CliArgs where
   def :: CliArgs
   def =
     CliArgs
-      { listFiles = False,
+      { dryRun = False,
+        configDir = Nothing,
         list = False,
-        dryRun = False,
-        configDir = Nothing
+        listFiles = False
       }
+
+withArgs :: (CliArgs -> IO ()) -> IO ()
+withArgs =
+  withCliModified Peck.CliArgs.modifiers
+
+modifiers :: [Modifier]
+modifiers =
+  [ AddOptionHelp
+      "dryRun"
+      ( unindent
+          [i|
+            Print what peck would do without actually
+            installing or uninstalling anything.
+          |]
+      ),
+    AddOptionHelp
+      "configDir"
+      ( unindent
+          [i|
+            Set the directory where peck looks for
+            packages.yaml, packages.dhall and the
+            database file. (default: ~/.config/peck/)
+          |]
+      ),
+    AddOptionHelp
+      "list"
+      ( unindent
+          [i|
+            List all installed packages.
+          |]
+      ),
+    AddOptionHelp
+      "listFiles"
+      ( unindent
+          [i|
+            List all installed packages, including
+            all files installed by each package.
+          |]
+      )
+  ]

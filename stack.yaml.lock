@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: getopt-generics-0.13.1.0@sha256:ca896691be868f00516cebfceda43dda31154561ab170b866c2403566f824a0c,3097
+    pantry-tree:
+      sha256: e2b78c19b81663a1c30007f4473435b38a1a251ecd7e4b3b30ccb49a2f1ddb5a
+      size: 2926
+  original:
+    hackage: getopt-generics-0.13.1.0
 snapshots:
 - completed:
     sha256: 9a74d76d250a455d9cd11e74f157e087787fa9aa3c4264e69c94703d1e71aede

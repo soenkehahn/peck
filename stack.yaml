@@ -3,3 +3,6 @@ resolver:
 
 packages:
   - .
+
+extra-deps:
+  - getopt-generics-0.13.1.0

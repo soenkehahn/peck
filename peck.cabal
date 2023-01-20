@@ -31,7 +31,7 @@ executable peck
     , dhall
     , directory
     , filepath
-    , getopt-generics
+    , getopt-generics >=0.13.1.0
     , interpolate
     , shake
     , temporary
@@ -69,7 +69,7 @@ test-suite spec
     , dhall
     , directory
     , filepath
-    , getopt-generics
+    , getopt-generics >=0.13.1.0
     , hspec
     , interpolate
     , mockery

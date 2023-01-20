@@ -12,7 +12,6 @@ import Peck.PackageConfig
 import Peck.Utils
 import System.Exit
 import System.FilePath
-import WithCli
 
 getDbFile :: CliArgs -> IO FilePath
 getDbFile args = do
@@ -21,7 +20,7 @@ getDbFile args = do
 run :: Context -> IO ExitCode
 run context =
   handleErrors $ do
-    withCli $ \args -> do
+    withArgs $ \args -> do
       db <- initialize =<< getDbFile args
       if list args
         then listPackages db

@@ -10,7 +10,7 @@ dependencies:
   - dhall
   - directory
   - filepath
-  - getopt-generics
+  - getopt-generics >= 0.13.1.0
   - interpolate
   - shake
   - temporary
