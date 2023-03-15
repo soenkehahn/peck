@@ -13,6 +13,7 @@ dependencies:
   - getopt-generics >= 0.13.1.0
   - interpolate
   - process
+  - sqlite-simple
   - temporary
   - unix
   - yaml

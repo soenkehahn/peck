@@ -34,6 +34,7 @@ executable peck
     , getopt-generics >=0.13.1.0
     , interpolate
     , process
+    , sqlite-simple
     , temporary
     , unix
     , yaml
@@ -76,6 +77,7 @@ test-suite spec
     , process
     , shake
     , silently
+    , sqlite-simple
     , string-conversions
     , temporary
     , unix

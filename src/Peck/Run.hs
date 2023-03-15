@@ -21,13 +21,14 @@ run :: Context -> IO ExitCode
 run context =
   handleErrors $ do
     withArgs $ \args -> do
-      db <- initialize =<< getDbFile args
-      if list args
-        then listPackages db
-        else
-          if listFiles args
-            then listPackagesWithFiles db
-            else apply context args db
+      dbFile <- getDbFile args
+      withDb dbFile $ \db ->
+        if list args
+          then listPackages db
+          else
+            if listFiles args
+              then listPackagesWithFiles db
+              else apply context args db
 
 apply :: Context -> CliArgs -> Db InstalledPackage -> IO ()
 apply context args db = do
