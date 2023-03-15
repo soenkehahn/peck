@@ -33,7 +33,7 @@ executable peck
     , filepath
     , getopt-generics >=0.13.1.0
     , interpolate
-    , shake
+    , process
     , temporary
     , unix
     , yaml
@@ -73,6 +73,7 @@ test-suite spec
     , hspec
     , interpolate
     , mockery
+    , process
     , shake
     , silently
     , string-conversions
