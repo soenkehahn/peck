@@ -115,8 +115,11 @@ migrations =
       { name = "switch to JSON",
         readAll = \path -> do
           withConnection path $ \connection -> do
-            mapM (readMaybe . fromOnly)
-              <$> query_ connection "SELECT serialized FROM main",
+            rawElements :: [Only String] <- query_ connection "SELECT serialized FROM main"
+            return $
+              if null rawElements
+                then Nothing
+                else mapM (readMaybe . fromOnly) rawElements,
         writeAll = \path elements -> do
           withConnection path $ \connection -> do
             execute_

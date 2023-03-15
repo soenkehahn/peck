@@ -2,5 +2,4 @@
 - fail when two packages in the config are identical
 - provide a --reinstall flag
 - implement a --init that creates a simple example config
-- write db file with json for better backwards compatibility
 - better --help output

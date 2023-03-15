@@ -45,22 +45,21 @@ spec = do
           readDb db `shouldReturn` [42]
 
       describe "old show-based list format" $ do
-        let init = do
+        let setup = do
               writeFile "db" (show [42, 23 :: Int])
-        before init $ do
-          it "reads the old show format" $ do
+        before setup $ do
+          it "reads the old format" $ do
             withDb ctx "db" readDb `shouldReturn` [42, 23 :: Int]
 
-          it "converts to an sqlite table" $ do
+          it "converts the db file to sqlite" $ do
             withDb ctx "db" $ \(_ :: Db Int) -> return ()
             withConnection "db" $ \connection -> do
               ns :: [Only Int] <- query_ connection "SELECT 1 + 1"
               ns `shouldBe` [Only 2]
-              return ()
 
       describe "old show-based element format" $ do
         let testData = [TestRecord 42 "foo", TestRecord 23 "bar"]
-            init = do
+            setup = do
               withConnection "db" $ \connection -> do
                 execute_
                   connection
@@ -70,11 +69,11 @@ spec = do
                     connection
                     "INSERT INTO main (serialized) VALUES (?)"
                     (Only (show e))
-        before_ init $ do
+        before_ setup $ do
           it "reads the old format" $ do
             withDb ctx "db" readDb `shouldReturn` testData
 
-          it "converts to json" $ do
+          it "converts all elements to json" $ do
             withDb ctx "db" $ \(_ :: Db TestRecord) -> return ()
             withConnection "db" $ \connection -> do
               result :: [Only String] <- query_ connection "SELECT serialized FROM main"
