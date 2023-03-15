@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use unless" #-}
@@ -13,32 +15,46 @@ module Peck.Db
 where
 
 import Control.Monad
+import Data.Proxy (Proxy (..))
+import Database.SQLite.Simple
 import System.Directory
 import System.FilePath
+import Text.Read (readMaybe)
 
 data Db a where
-  Db :: (Show a, Read a, Eq a) => FilePath -> Db a
+  Db :: (Show a, Read a, Eq a) => Connection -> Db a
 
-initialize :: (Show a, Read a, Eq a) => FilePath -> IO (Db a)
+initialize :: forall a. (Show a, Read a, Eq a) => FilePath -> IO (Db a)
 initialize path = do
-  exists <- doesFileExist path
-  when (not exists) $ do
-    createDirectoryIfMissing True $ takeDirectory path
-    writeFile path "[]"
-  return $ Db path
+  migrate (Proxy :: Proxy a) path
+  createDirectoryIfMissing True $ takeDirectory path
+  connection <- open path
+  execute_ connection "CREATE TABLE IF NOT EXISTS main (serialized TEXT)"
+  return $ Db connection
 
 readDb :: Db a -> IO [a]
-readDb (Db path) = do
-  s <- readFile path
+readDb (Db connection) = do
+  s :: [Only String] <- query_ connection "SELECT serialized FROM main"
   seq (length s) (return ())
-  return $ read s
+  return $ map (read . fromOnly) s
 
 addElement :: Db a -> a -> IO ()
-addElement db@(Db path) a = do
-  state <- readDb db
-  writeFile path $ show (state ++ [a])
+addElement (Db connection) a = do
+  execute connection "INSERT INTO main (serialized) VALUES (?)" (Only (show a))
 
 removeElement :: Db a -> a -> IO ()
-removeElement db@(Db path) a = do
-  state <- readDb db
-  writeFile path $ show (filter (/= a) state)
+removeElement (Db connection) a = do
+  execute connection "DELETE FROM main WHERE serialized = ?" (Only (show a))
+
+migrate :: forall a. (Read a, Show a, Eq a) => Proxy a -> FilePath -> IO ()
+migrate Proxy path = do
+  exists <- doesFileExist path
+  when exists $ do
+    maybeContents :: Maybe [a] <- readMaybe <$> readFile path
+    case maybeContents of
+      Nothing -> return ()
+      Just elements -> do
+        seq (length elements) (return ())
+        removeFile path
+        db :: Db a <- initialize path
+        mapM_ (addElement db) elements
