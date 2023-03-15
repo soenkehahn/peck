@@ -22,7 +22,7 @@ run context =
   handleErrors $ do
     withArgs $ \args -> do
       dbFile <- getDbFile args
-      withDb dbFile $ \db ->
+      withDb context dbFile $ \db ->
         if list args
           then listPackages db
           else

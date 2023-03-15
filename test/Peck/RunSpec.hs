@@ -33,7 +33,7 @@ testRunWithArgs args config = do
     ExitFailure _ -> do
       error $ show exitCode
     ExitSuccess -> do
-      withDb dbPath readDb
+      withDb testContext dbPath readDb
 
 spec :: Spec
 spec = wrapTests $ do
@@ -298,7 +298,7 @@ spec = wrapTests $ do
             config = [goodPackage, failingPackage]
         writeConfig config
         ExitFailure 1 <- hSilence [stderr] $ run testContext
-        db :: [InstalledPackage] <- withDb dbPath readDb
+        db :: [InstalledPackage] <- withDb testContext dbPath readDb
         db
           `shouldBe` [ InstalledPackage
                          { package = goodPackage,

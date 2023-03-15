@@ -62,7 +62,11 @@ data InstalledPackage = InstalledPackage
   { package :: Package,
     files :: [FilePath]
   }
-  deriving stock (Show, Read, Eq)
+  deriving stock (Show, Read, Eq, Generic)
+
+instance FromJSON InstalledPackage
+
+instance ToJSON InstalledPackage
 
 data CopyPair = FilePath :-> FilePath
   deriving stock (Show, Eq)
