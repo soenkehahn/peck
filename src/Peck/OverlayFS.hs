@@ -8,12 +8,15 @@ module Peck.OverlayFS
   )
 where
 
+import Control.Concurrent (forkOS)
+import Control.Concurrent.MVar
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
 import Peck.Utils
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.Linux.Namespaces (Namespace (..), unshare)
 import System.Process
 
 newtype Command = Script FilePath
@@ -51,11 +54,20 @@ performInOverlayFS tempDir (Script path) = do
 
           unshare -Umr --root #{tempDir}/overlay --wd #{workingDir} #{path}
         |]
-  outerScript <- writeScript tempDir "outer.sh" ("unshare -Umr " <> innerScript)
-  exitCode <- runScript outerScript
+
+  exitCode <- runInOsThread $ do
+    unshare [User, Mount]
+    runScript innerScript
   return $ case exitCode of
     ExitFailure _ -> Left exitCode
     ExitSuccess -> Right $ tempDir </> "upper"
+
+runInOsThread :: IO a -> IO a
+runInOsThread action = do
+  mvar <- newEmptyMVar
+  _ <- forkOS $ do
+    action >>= putMVar mvar
+  takeMVar mvar
 
 runScript :: FilePath -> IO ExitCode
 runScript script = do

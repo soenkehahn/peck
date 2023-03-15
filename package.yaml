@@ -13,6 +13,7 @@ dependencies:
   - filepath
   - getopt-generics >= 0.13.1.0
   - interpolate
+  - linux-namespaces
   - process
   - sqlite-simple
   - string-conversions

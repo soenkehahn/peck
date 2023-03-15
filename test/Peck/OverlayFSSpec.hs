@@ -28,7 +28,7 @@ writeScript code = do
   return "script.sh"
 
 spec :: Spec
-spec =
+spec = focus $ do
   around_ inTempDirectory $ do
     describe "withMountedImageFile" $ do
       describe "without using the overlaid layer" $ do
