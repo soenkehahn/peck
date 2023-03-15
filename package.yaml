@@ -12,7 +12,7 @@ dependencies:
   - filepath
   - getopt-generics >= 0.13.1.0
   - interpolate
-  - shake
+  - process
   - temporary
   - unix
   - yaml
@@ -26,6 +26,7 @@ tests:
     dependencies:
       - hspec
       - mockery
+      - shake
       - silently
       - string-conversions
     ghc-options:

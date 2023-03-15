@@ -22,7 +22,6 @@ import Control.Monad
 import Data.List
 import Data.String
 import Data.Yaml
-import Development.Shake (cmd_)
 import Dhall (FromDhall)
 import GHC.Generics (Generic)
 import Peck.Error
@@ -91,7 +90,7 @@ installPackage :: Package -> IO InstalledPackage
 installPackage package = do
   withTempDir $ \((</> "install.sh") -> installScript) -> do
     writeFile installScript $ install package
-    cmd_ "chmod +x" installScript
+    addExecutePermissions installScript
     withTempDir $ \buildDir -> do
       withCurrentDirectory buildDir $ do
         files <- withMountedImageFile (Script installScript) $ \overlay -> do

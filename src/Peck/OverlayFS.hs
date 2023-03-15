@@ -10,11 +10,11 @@ where
 
 import Data.String.Interpolate
 import Data.String.Interpolate.Util
-import Development.Shake (cmd, unit)
 import Peck.Utils
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.Process
 
 newtype Command = Script FilePath
 
@@ -52,14 +52,20 @@ performInOverlayFS tempDir (Script path) = do
           unshare -Umr --root #{tempDir}/overlay --wd #{workingDir} #{path}
         |]
   outerScript <- writeScript tempDir "outer.sh" ("unshare -Umr " <> innerScript)
-  exitCode <- cmd outerScript
+  exitCode <- runScript outerScript
   return $ case exitCode of
     ExitFailure _ -> Left exitCode
     ExitSuccess -> Right $ tempDir </> "upper"
 
+runScript :: FilePath -> IO ExitCode
+runScript script = do
+  (_, _, _, handle) <- createProcess (proc script [])
+  waitForProcess handle
+
 writeScript :: FilePath -> FilePath -> String -> IO FilePath
 writeScript dir path code = do
-  writeFile (dir </> path) $
+  let script = dir </> path
+  writeFile script $
     unindent
       [i|
         #!/usr/bin/env bash
@@ -68,5 +74,5 @@ writeScript dir path code = do
 
         #{code}
       |]
-  unit $ cmd "chmod +x" (dir </> path)
-  return (dir </> path)
+  addExecutePermissions script
+  return script

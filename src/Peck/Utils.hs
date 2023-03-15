@@ -4,22 +4,18 @@ import Control.Exception
 import Control.Monad
 import Data.Char (isSpace)
 import Data.List
-import Development.Shake (cmd, unit)
 import Peck.CliArgs (CliArgs (configDir))
 import System.Directory
 import System.FilePath
 import System.IO
 import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
+import System.Posix.Files
 
 -- 'withSystemTempDirectory' somehow doesn't work, maybe because of the mounts?
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir action = do
   systemTempDir <- getCanonicalTemporaryDirectory
-  bracket (createTempDirectory systemTempDir "peck") removeDir action
-  where
-    removeDir dir = do
-      unit $ cmd "chmod u+rwX -R" dir
-      unit $ cmd "rm" dir "-rf"
+  bracket (createTempDirectory systemTempDir "peck") removePathForcibly action
 
 readFilesRecursively :: FilePath -> IO [FilePath]
 readFilesRecursively dir = do
@@ -29,6 +25,11 @@ readFilesRecursively dir = do
     if isDir
       then sort . map (child </>) <$> readFilesRecursively (dir </> child)
       else return [child]
+
+addExecutePermissions :: FilePath -> IO ()
+addExecutePermissions path = do
+  mode <- fileMode <$> getFileStatus path
+  setFileMode path $ mode `unionFileModes` ownerExecuteMode
 
 readFiles :: FilePath -> IO [FilePath]
 readFiles dir = filter (not . (`elem` [".", ".."])) <$> getDirectoryContents dir
