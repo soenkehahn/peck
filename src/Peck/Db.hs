@@ -7,7 +7,7 @@
 
 module Peck.Db
   ( Db,
-    initialize,
+    withDb,
     readDb,
     addElement,
     removeElement,
@@ -24,13 +24,13 @@ import Text.Read (readMaybe)
 data Db a where
   Db :: (Show a, Read a, Eq a) => Connection -> Db a
 
-initialize :: forall a. (Show a, Read a, Eq a) => FilePath -> IO (Db a)
-initialize path = do
+withDb :: forall a b. (Show a, Read a, Eq a) => FilePath -> (Db a -> IO b) -> IO b
+withDb path action = do
   migrate (Proxy :: Proxy a) path
   createDirectoryIfMissing True $ takeDirectory path
-  connection <- open path
-  execute_ connection "CREATE TABLE IF NOT EXISTS main (serialized TEXT)"
-  return $ Db connection
+  withConnection path $ \connection -> do
+    execute_ connection "CREATE TABLE IF NOT EXISTS main (serialized TEXT)"
+    action $ Db connection
 
 readDb :: Db a -> IO [a]
 readDb (Db connection) = do
@@ -56,5 +56,5 @@ migrate Proxy path = do
       Just elements -> do
         seq (length elements) (return ())
         removeFile path
-        db :: Db a <- initialize path
-        mapM_ (addElement db) elements
+        withDb path $ \db -> do
+          mapM_ (addElement db) elements
