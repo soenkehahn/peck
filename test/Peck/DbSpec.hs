@@ -11,6 +11,7 @@ import Data.String.Conversions (cs)
 import Database.SQLite.Simple
 import GHC.Generics (Generic)
 import Peck.Db
+import Peck.TestUtils (testContext)
 import Test.Hspec
 import Test.Mockery.Directory
 
@@ -26,19 +27,20 @@ instance ToJSON TestRecord
 
 spec :: Spec
 spec = do
+  let ctx = testContext
   around_ inTempDirectory $ do
     describe "withDb" $ do
       it "initializes a non-existing db with the empty state" $ do
-        withDb "db" $ \(db :: Db ()) ->
+        withDb ctx "db" $ \(db :: Db ()) ->
           readDb db `shouldReturn` []
 
       it "doesn't modify existing db files" $ do
-        withDb "db" $ \(db :: Db Int) -> addElement db 42
-        withDb "db" (\(db :: Db Int) -> readDb db) `shouldReturn` [42]
+        withDb ctx "db" $ \(db :: Db Int) -> addElement db 42
+        withDb ctx "db" (\(db :: Db Int) -> readDb db) `shouldReturn` [42]
 
     describe "readDb" $ do
       it "reads the db state" $ do
-        withDb "db" $ \(db :: Db Int) -> do
+        withDb ctx "db" $ \(db :: Db Int) -> do
           addElement db 42
           readDb db `shouldReturn` [42]
 
@@ -47,10 +49,10 @@ spec = do
               writeFile "db" (show [42, 23 :: Int])
         before init $ do
           it "reads the old show format" $ do
-            withDb "db" readDb `shouldReturn` [42, 23 :: Int]
+            withDb ctx "db" readDb `shouldReturn` [42, 23 :: Int]
 
           it "converts to an sqlite table" $ do
-            withDb "db" $ \(_ :: Db Int) -> return ()
+            withDb ctx "db" $ \(_ :: Db Int) -> return ()
             withConnection "db" $ \connection -> do
               ns :: [Only Int] <- query_ connection "SELECT 1 + 1"
               ns `shouldBe` [Only 2]
@@ -70,10 +72,10 @@ spec = do
                     (Only (show e))
         before_ init $ do
           it "reads the old format" $ do
-            withDb "db" readDb `shouldReturn` testData
+            withDb ctx "db" readDb `shouldReturn` testData
 
           it "converts to json" $ do
-            withDb "db" $ \(_ :: Db TestRecord) -> return ()
+            withDb ctx "db" $ \(_ :: Db TestRecord) -> return ()
             withConnection "db" $ \connection -> do
               result :: [Only String] <- query_ connection "SELECT serialized FROM main"
               let expected :: [Either String Value] = map (Right . toJSON) testData
@@ -81,7 +83,7 @@ spec = do
 
     describe "removeElement" $ do
       it "removes elements" $ do
-        withDb "db" $ \db -> do
+        withDb ctx "db" $ \db -> do
           addElement db (42 :: Int)
           addElement db 23
           removeElement db 42
