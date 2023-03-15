@@ -26,7 +26,8 @@ executable peck
       src
   ghc-options: -Wall -Wno-name-shadowing
   build-depends:
-      base
+      aeson
+    , base
     , data-default
     , dhall
     , directory
@@ -35,6 +36,7 @@ executable peck
     , interpolate
     , process
     , sqlite-simple
+    , string-conversions
     , temporary
     , unix
     , yaml
@@ -65,7 +67,8 @@ test-suite spec
       src
   ghc-options: -Wall -Wno-name-shadowing -fdefer-typed-holes
   build-depends:
-      base
+      aeson
+    , base
     , data-default
     , dhall
     , directory

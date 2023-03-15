@@ -5,6 +5,7 @@ ghc-options:
   - -Wno-name-shadowing
 
 dependencies:
+  - aeson
   - base
   - data-default
   - dhall
@@ -14,6 +15,7 @@ dependencies:
   - interpolate
   - process
   - sqlite-simple
+  - string-conversions
   - temporary
   - unix
   - yaml
@@ -29,7 +31,6 @@ tests:
       - mockery
       - shake
       - silently
-      - string-conversions
     ghc-options:
       - -fdefer-typed-holes
 

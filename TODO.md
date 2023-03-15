@@ -3,5 +3,4 @@
 - provide a --reinstall flag
 - implement a --init that creates a simple example config
 - write db file with json for better backwards compatibility
-- use db file for locking (with sqlite?)
 - better --help output
